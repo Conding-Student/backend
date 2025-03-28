@@ -21,6 +21,14 @@ type User struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
+// Admin model (Separate from User to avoid unnecessary fields)
+type Admins struct {
+	ID        uint   `gorm:"primaryKey"`
+	Email     string `gorm:"unique;not null"`
+	Password  string `gorm:"not null"`
+	CreatedAt time.Time
+}
+
 // Landlord Profile (Separate from User)
 type LandlordProfile struct {
 	ID             uint   `gorm:"primaryKey"`

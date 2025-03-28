@@ -29,6 +29,7 @@ func ConnectDB() bool {
 	// ✅ Run AutoMigrate for all models
 	err = DBConn.AutoMigrate(
 		&model.User{},
+		&model.Admins{},
 		&model.LandlordProfile{},
 		&model.Apartment{},
 		&model.ApartmentImage{},
