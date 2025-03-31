@@ -31,6 +31,7 @@ func AppRoutes(app *fiber.App) {
 	//app.Post("/register/user", controller.RegisterUser)
 	//app.Get("/get/user/:id", controller.GetUser)
 	//app.Get("/get/all/user", controller.GetAllUsers)
+	//testing
 	app.Post("/registertenant/account", Usercontroller.RegisterTenant)
 	app.Post("/registerlandlord/account", Usercontroller.RegisterLandlord)
 	app.Post("/loginuser/account", Usercontroller.LoginUser)
