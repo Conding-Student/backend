@@ -46,6 +46,7 @@ type Apartment struct {
 	PropertyType  string  `gorm:"not null"` // "Bed Space" or "Apartment"
 	RentPrice     float64 `gorm:"not null"`
 	LocationLink  string  `gorm:"not null"`
+	Landmarks     string  `gorm:"not null"`
 	ContactNumber string  `gorm:"not null"`
 	Email         string  `gorm:"not null"`
 	Facebook      string

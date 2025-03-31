@@ -5,6 +5,7 @@ import (
 	controller "intern_template_v1/controller/Admin"
 	Usercontroller "intern_template_v1/controller/auth"
 	landlordcontroller "intern_template_v1/controller/landlord"
+	tenantscontroller "intern_template_v1/controller/tenants"
 	"intern_template_v1/middleware"
 
 	"github.com/gofiber/fiber/v2"
@@ -48,4 +49,12 @@ func AppRoutes(app *fiber.App) {
 	//route for landlord verification
 	app.Get("/user/pending", controller.GetPendingUsers) // Fetch unverified users
 	app.Put("/user/verify/:id", controller.VerifyUsers)  // Approve/Reject a users
+
+	//route for getting tenants inquiry
+	app.Get("/tenants/inquiry", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
+
+	//routes for tenants
+	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartments)                   //Display all the Approved apartment
+	app.Post("/api/inquiry/application", middleware.AuthMiddleware, tenantscontroller.CreateInquiry) //inquire in specific apartment
+
 }

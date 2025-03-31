@@ -16,6 +16,7 @@ type ApartmentRequest struct {
 	PropertyType  string   `json:"property_type"`
 	RentPrice     float64  `json:"rent_price"`
 	LocationLink  string   `json:"location_link"`
+	Landmarks     string   `json:"landmarks"`
 	ContactNumber string   `json:"contact_number"`
 	Email         string   `json:"email"`
 	Facebook      string   `json:"facebook"`
@@ -69,6 +70,7 @@ func CreateApartment(c *fiber.Ctx) error {
 		PropertyType:  req.PropertyType,
 		RentPrice:     req.RentPrice,
 		LocationLink:  req.LocationLink,
+		Landmarks:     req.Landmarks,
 		ContactNumber: req.ContactNumber,
 		Email:         req.Email,
 		Facebook:      req.Facebook,
