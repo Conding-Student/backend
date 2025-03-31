@@ -4,6 +4,7 @@ import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
 	"net/http"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -59,6 +60,20 @@ func CreateApartment(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"ret_code": "400",
 			"message":  "Missing or invalid required fields",
+		})
+	}
+
+	// 🔍 **Check for duplicate apartments before inserting**
+	normalizedPropertyName := strings.ToLower(strings.TrimSpace(req.PropertyName))
+	normalizedAddress := strings.ToLower(strings.TrimSpace(req.Address))
+
+	var existingApartment model.Apartment
+	if err := middleware.DBConn.
+		Where("LOWER(TRIM(property_name)) = ? AND LOWER(TRIM(address)) = ?", normalizedPropertyName, normalizedAddress).
+		First(&existingApartment).Error; err == nil {
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"ret_code": "409",
+			"message":  "Apartment with the same name and address already exists",
 		})
 	}
 

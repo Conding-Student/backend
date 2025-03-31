@@ -23,6 +23,8 @@ type User struct {
 	ValidID       string    `gorm:"not null" json:"valid_id"`
 	AccountStatus string    `gorm:"not null;default:'Pending'"` // "Verified" / "Unverified"
 	UserType      string    `gorm:"not null" json:"user_type"`  // "Landlord", "Tenant", "Admin"
+	Birthday      string    `gorm:"not null" json:"birthday"`
+	AuthType      string    `gorm:"not null" json:"auth_type"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 
