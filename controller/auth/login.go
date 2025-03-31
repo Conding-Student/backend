@@ -74,6 +74,16 @@ func LoginUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// Prevent login if account is "pending"
+	if user.AccountStatus == "Pending" {
+		log.Printf("[WARNING] Login attempt for rejected user: %s", user.Email)
+		return c.Status(fiber.StatusForbidden).JSON(response.ResponseModel{
+			RetCode: "403",
+			Message: "Your account is still pending. Please wait for the approval.",
+			Data:    nil,
+		})
+	}
+
 	// Compare hashed password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		log.Printf("[WARNING] Incorrect password for user: %s", user.Email)

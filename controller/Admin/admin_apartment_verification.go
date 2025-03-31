@@ -29,7 +29,7 @@ type VerifyApartmentRequest struct {
 	Status string `json:"status"` // Expected values: "Approved" or "Rejected"
 }
 
-// ✅ Verify (Approve/Reject) an Apartment
+// Verify (Approve/Reject) an Apartment
 func VerifyApartment(c *fiber.Ctx) error {
 	apartmentID := c.Params("id") // Get apartment ID from the URL
 	var req VerifyApartmentRequest
@@ -47,16 +47,30 @@ func VerifyApartment(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update apartment status in the database
-	result := middleware.DBConn.Model(&model.Apartment{}).
-		Where("id = ?", apartmentID).
-		Update("status", req.Status)
-
+	var apartment model.Apartment
+	result := middleware.DBConn.First(&apartment, apartmentID)
 	if result.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update apartment status",
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Apartment not found",
 		})
 	}
+
+	// 🔥 If status is "Rejected", DELETE the apartment
+	if req.Status == "Rejected" {
+		deleteResult := middleware.DBConn.Delete(&apartment)
+		if deleteResult.Error != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to delete apartment",
+			})
+		}
+		return c.JSON(fiber.Map{
+			"message": "Apartment rejected and removed successfully",
+		})
+	}
+
+	// Otherwise, just update the status
+	apartment.Status = req.Status
+	middleware.DBConn.Save(&apartment)
 
 	return c.JSON(fiber.Map{
 		"message":      "Apartment status updated successfully",
