@@ -57,7 +57,7 @@ func AppRoutes(app *fiber.App) {
 
 	//route for getting tenants inquiry
 	app.Get("/tenants/inquiry", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
-
+	app.Put("/tenants/inquiry/update/:id", landlordcontroller.UpdateInquiryStatus)                      // Approve/Reject a users
 	//routes for tenants
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartments)                   //Display all the Approved apartment
 	app.Post("/api/inquiry/application", middleware.AuthMiddleware, tenantscontroller.CreateInquiry) //inquire in specific apartment
