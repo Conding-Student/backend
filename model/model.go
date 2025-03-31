@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+// Landlord confirmation to delete "rejected" apartment
+type DeleteApartmentRequest struct {
+	Confirm bool `json:"confirm"` // Landlord must confirm deletion
+}
+
 // User model (Landlords, Tenants, Admins)
 type User struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`

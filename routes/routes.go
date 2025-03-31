@@ -15,7 +15,7 @@ import (
 func AppRoutes(app *fiber.App) {
 	// SAMPLE ENDPOINT
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Hello Golang World!")
+		return c.SendString("RentXpert! go, go, go lang!")
 	})
 
 	// CREATE YOUR ENDPOINTS HERE
@@ -34,6 +34,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/registertenant/account", Usercontroller.RegisterTenant)
 	app.Post("/registerlandlord/account", Usercontroller.RegisterLandlord)
 	app.Post("/loginuser/account", Usercontroller.LoginUser)
+
 	//app.Post("/addrentallisting", landlordcontroller.CreateApartment)
 	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord)
@@ -45,6 +46,9 @@ func AppRoutes(app *fiber.App) {
 	//route for apartment verification
 	app.Get("/apartments/pending", controller.GetPendingApartments) // Fetch unverified apartments
 	app.Put("/apartments/verify/:id", controller.VerifyApartment)   // Approve/Reject an apartment
+
+	//Landlord confirms "rejected" apartment info
+	app.Delete("/apartment/:id/delete", controller.ConfirmLandlord) // landlord confirms rejected apartment
 
 	//route for landlord verification
 	app.Get("/user/pending", controller.GetPendingUsers) // Fetch unverified users
