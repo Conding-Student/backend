@@ -10,9 +10,9 @@ type DeleteApartmentRequest struct {
 }
 
 type User struct {
-	ID       uint   `gorm:"primaryKey;autoIncrement"`
-    Uid      string `gorm:"uniqueIndex"`
-    Email    string `gorm:"unique"`
+	ID            uint      `gorm:"primaryKey;autoIncrement"`
+	Uid           string    `gorm:"uniqueIndex"`
+	Email         string    `gorm:"unique"`
 	PhoneNumber   string    `json:"phone_number"`
 	Password      string    `json:"password,omitempty"` // Optional for email sign-up
 	FirstName     string    `json:"first_name"`
@@ -24,14 +24,13 @@ type User struct {
 	AccountStatus string    `gorm:"not null;default:'Pending'" json:"account_status"` // "Verified" / "Unverified"
 	Provider      string    `gorm:"not null" json:"provider"`                         // "email", "google", "facebook"
 	PhotoURL      string    `json:"photo_url"`
-	UserType      string    `gorm:"not null" json:"user_type"`  // "Landlord", "Tenant", "Admin"
+	UserType      string    `gorm:"not null" json:"user_type"` // "Landlord", "Tenant", "Admin"
 	Birthday      string    `gorm:"not null" json:"birthday"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-
-// Admin model (Separate from User to avoid unnecessary fields)
+// Admin model (Separate from User)
 type Admins struct {
 	ID        uint      `gorm:"primaryKey"`
 	Email     string    `gorm:"unique;not null"`
@@ -71,14 +70,16 @@ type ApartmentImage struct {
 	ImageURL    string `gorm:"not null"`
 }
 
-// Inquiry model
+// Inquiry model (With automatic expiration & notification)
 type Inquiry struct {
 	ID          uint      `gorm:"primaryKey"`
 	TenantID    uint      `gorm:"not null"`
 	ApartmentID uint      `gorm:"not null"`
 	Message     string    `gorm:"not null"`
-	Status      string    `gorm:"not null;default:'Pending'"` // "Pending", "Responded", "Expired"
+	Status      string    `gorm:"not null;default:'Pending'"` // "Pending", "Responded", "Expiring", "Expired"
 	CreatedAt   time.Time `json:"created_at"`
+	ExpiresAt   time.Time `gorm:"not null"`               // Automatically set to CreatedAt + 7 days
+	Notified    bool      `gorm:"not null;default:false"` // Tracks if a notification was sent
 }
 
 // Amenity model
