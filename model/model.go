@@ -9,24 +9,27 @@ type DeleteApartmentRequest struct {
 	Confirm bool `json:"confirm"` // Landlord must confirm deletion
 }
 
-// User model (Landlords, Tenants, Admins)
 type User struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	Email         string    `gorm:"unique;not null" json:"email"`
-	PhoneNumber   string    `gorm:"not null" json:"phone_number"`
-	Password      string    `gorm:"not null" json:"password"`
-	FirstName     string    `gorm:"not null" json:"first_name"`
+	ID       uint   `gorm:"primaryKey;autoIncrement"`
+    Uid      string `gorm:"uniqueIndex"`
+    Email    string `gorm:"unique"`
+	PhoneNumber   string    `json:"phone_number"`
+	Password      string    `json:"password,omitempty"` // Optional for email sign-up
+	FirstName     string    `json:"first_name"`
 	MiddleInitial string    `json:"middle_initial"`
-	LastName      string    `gorm:"not null" json:"last_name"`
-	Age           int       `gorm:"not null" json:"age"`
-	Address       string    `gorm:"not null" json:"address"`
-	ValidID       string    `gorm:"not null" json:"valid_id"`
-	AccountStatus string    `gorm:"not null;default:'Pending'"` // "Verified" / "Unverified"
+	LastName      string    `json:"last_name"`
+	Age           int       `json:"age"`
+	Address       string    `json:"address"`
+	ValidID       string    `json:"valid_id"`
+	AccountStatus string    `gorm:"not null;default:'Pending'" json:"account_status"` // "Verified" / "Unverified"
+	Provider      string    `gorm:"not null" json:"provider"`                         // "email", "google", "facebook"
+	PhotoURL      string    `json:"photo_url"`
 	UserType      string    `gorm:"not null" json:"user_type"`  // "Landlord", "Tenant", "Admin"
 	Birthday      string    `gorm:"not null" json:"birthday"`
-	AuthType      string    `gorm:"not null" json:"auth_type"`
 	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
+
 
 // Admin model (Separate from User to avoid unnecessary fields)
 type Admins struct {

@@ -2,8 +2,10 @@ package routes
 
 import (
 	//"intern_template_v1/controller"
-	controller "intern_template_v1/controller/Admin"
-	Usercontroller "intern_template_v1/controller/auth"
+	controller "intern_template_v1/controller/admin"
+	authcontroller "intern_template_v1/controller/auth"
+
+	// Usercontroller "intern_template_v1/controller/auth"
 	landlordcontroller "intern_template_v1/controller/landlord"
 	tenantscontroller "intern_template_v1/controller/tenants"
 	"intern_template_v1/middleware"
@@ -32,9 +34,11 @@ func AppRoutes(app *fiber.App) {
 	//app.Get("/get/user/:id", controller.GetUser)
 	//app.Get("/get/all/user", controller.GetAllUsers)
 	//testing
-	app.Post("/registertenant/account", Usercontroller.RegisterTenant)
-	app.Post("/registerlandlord/account", Usercontroller.RegisterLandlord)
-	app.Post("/loginuser/account", Usercontroller.LoginUser)
+
+
+	// app.Post("/registertenant/account", Usercontroller.RegisterTenant)
+	// app.Post("/registerlandlord/account", Usercontroller.RegisterLandlord)
+	// app.Post("/loginuser/account", Usercontroller.LoginUser)
 
 	//app.Post("/addrentallisting", landlordcontroller.CreateApartment)
 	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)
@@ -61,5 +65,5 @@ func AppRoutes(app *fiber.App) {
 	//routes for tenants
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartments)                   //Display all the Approved apartment
 	app.Post("/api/inquiry/application", middleware.AuthMiddleware, tenantscontroller.CreateInquiry) //inquire in specific apartment
-
+	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
 }

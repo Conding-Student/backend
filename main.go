@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+
+	"intern_template_v1/config"
+	authController "intern_template_v1/controller/auth" // alias local auth package as authController
 	"intern_template_v1/middleware"
 	"intern_template_v1/routes"
 
@@ -10,33 +15,41 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
-func init() {
-	fmt.Println("STARTING SERVER...")
-	fmt.Println("INITIALIZE DB CONNECTION...")
-	if middleware.ConnectDB() {
-		fmt.Println("DB CONNECTION FAILED!")
-	} else {
-		fmt.Println("DB CONNECTION SUCCESSFUL!")
-	}
-}
-
 func main() {
+
+	if middleware.ConnectDB() {
+		log.Fatal("🔥 Failed to connect to the database")
+	}
+	
+
+
+	// Step 1: Initialize Firebase App
+	firebaseApp := config.InitializeFirebase()
+	fmt.Println("✅ Firebase Initialized:", firebaseApp)
+
+	// Step 2: Initialize Firebase Auth with context
+	firebaseAuthClient, err := firebaseApp.Auth(context.Background())
+	if err != nil {
+		log.Fatalf("🔥 Error initializing Firebase Auth: %v", err)
+	}
+
+	// Step 3: Set Firebase Auth in the auth controller
+	authController.InitFirebase(firebaseAuthClient)
+
+	// Step 4: Create Fiber App
 	app := fiber.New(fiber.Config{
 		AppName: middleware.GetEnv("PROJ_NAME"),
 	})
-
-	// API ROUTES
-	// Sample Endpoint
-	// localhost:5566/check
-	// app.Get("/check", controller.SampleController1)
 
 	// Do not remove this endpoint
 	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
 		return c.SendStatus(204) // No Content
 	})
 
+	// Step 5: Register Routes
 	routes.AppRoutes(app)
 	routes.UserRoutes(app)
+
 	// CORS CONFIG
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
@@ -46,6 +59,6 @@ func main() {
 	// LOGGER
 	app.Use(logger.New())
 
-	// Start Server
-	app.Listen(fmt.Sprintf(":%s", middleware.GetEnv("PROJ_PORT")))
+	// Step 6: Start Server
+	log.Fatal(app.Listen("0.0.0.0:8080")) // Allows external devices to connect
 }
