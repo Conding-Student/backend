@@ -48,12 +48,12 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/admin/register", controller.RegisterAdmin) // register admin
 	app.Post("/admin/login", controller.LoginHandler)     // login admin
 
-	//route for apartment verification
-	app.Get("/apartments/pending", controller.GetPendingApartments) // Fetch unverified apartments
-	app.Put("/apartments/verify/:id", controller.VerifyApartment)   // Approve/Reject an apartment
+	// //route for apartment verification
+	// app.Get("/apartments/pending", controller.GetPendingApartments) // Fetch unverified apartments
+	// app.Put("/apartments/verify/:id", controller.VerifyApartment)   // Approve/Reject an apartment
 
-	//Landlord confirms "rejected" apartment info
-	app.Delete("/apartment/:id/delete", controller.ConfirmLandlord) // landlord confirms rejected apartment
+	// //Landlord confirms "rejected" apartment info
+	// app.Delete("/apartment/:id/delete", controller.ConfirmLandlord) // landlord confirms rejected apartment
 
 	//route for landlord verification
 	app.Get("/user/pending", controller.GetPendingUsers) // Fetch unverified users
