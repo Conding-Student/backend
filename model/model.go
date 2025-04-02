@@ -15,9 +15,7 @@ type User struct {
     Email    string `gorm:"unique"`
 	PhoneNumber   string    `json:"phone_number"`
 	Password      string    `json:"password,omitempty"` // Optional for email sign-up
-	FirstName     string    `json:"first_name"`
-	MiddleInitial string    `json:"middle_initial"`
-	LastName      string    `json:"last_name"`
+	Fullname     string    `json:"fullname"`
 	Age           int       `json:"age"`
 	Address       string    `json:"address"`
 	ValidID       string    `json:"valid_id"`
@@ -25,9 +23,10 @@ type User struct {
 	Provider      string    `gorm:"not null" json:"provider"`                         // "email", "google", "facebook"
 	PhotoURL      string    `json:"photo_url"`
 	UserType      string    `gorm:"not null" json:"user_type"`  // "Landlord", "Tenant", "Admin"
-	Birthday      string    `gorm:"not null" json:"birthday"`
+	Birthday      string    `json:"birthday"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+	
 }
 
 

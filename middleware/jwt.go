@@ -1,35 +1,42 @@
 package middleware
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 )
 
-// Secret key for signing the JWT token
-var jwtSecret = []byte("8860a0e3f642c8a8ef7ba5d3408f19ee683d404e3fb9bee56bf5d7699de3ea142d49cda5e7799055f1a9878c4e2e94937b0359cddee2fbe11c77609c1799dd6c4d6f9c3f4d3d796b36f4c92a36d2ba4272ddd88974b5c5cce169cd85b716b7b73d6d7ca61d29dafc027d092ec2633643e89f203d7e3e1b3a3012b649512ff953190eee2346a5eb7d4a756bfb5ec9614f74c79d85468f933fd1934fd4d0da883f653dc9f6aaeb6056b31782844b8e547253507d05c2f5649e77608d9ee95bbcb7cc99a6b167c5b205be1efd6989af9965666f63fa5f09c01f5d9bda0acd27b5e9bcaa080e0c64536b643430d4d6907d3bca35c1e6cbc2e602214659b97d841c13") // 🔴 Change this to a strong secret key
+var jwtSecret = []byte("c4077a98dc8cfc12579593500d723270ef97f8dc28005cf8cad6d45e52ef346ffbf6c457d9fb1efff69c9102d59c1a37c518daa4a9fa8ebc6ff720b1747c31b9cdaa15c470a7a0218b42f9a2fecc283da64f372be74ca519ef37ba3f2461491f330f2e093ebacd448033d08a2ccbe616d5113a3e2a839aae7004bb786a68030ff6c0bba8302ccac771b2ba7ca890a73f90260d4b6f39e5356a6da59549a0674bee875711165d6c8e9efe08d96b9851ab1741e9c182eb7f5ea5a2dab6070c7e0c3b552ecff372d0953f34c3b9913f5284c47d8c445d3aad72ea1816cb80b5ebf927235e17d6f2e63188c0af9006f2df2eff8b0483bc8e17ecbd4d4eb96c91bc86")
 
-// GenerateJWT creates a JWT token for a user
-func GenerateJWT(userID uint, email, userType string) (string, error) {
-	// Define token expiration time (e.g., 24 hours)
-	expirationTime := time.Now().Add(24 * time.Hour)
+// Struct for JWT Claims
+type Claims struct {
+	UID   string `json:"uid"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
+	jwt.StandardClaims
+}
 
-	// Define token claims
-	claims := jwt.MapClaims{
-		"id":        userID,
-		"email":     email,
-		"user_type": userType,
-		"exp":       expirationTime.Unix(), // Expiration time (Unix format)
+// Generate JWT with Role
+func GenerateJWT(uid, email, role string) (string, error) {
+	claims := Claims{
+		UID:   uid,
+		Email: email,
+		Role:  role,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(), // 1-day expiry
+			IssuedAt:  time.Now().Unix(),
+		},
 	}
 
-	// Create the token with claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// Sign the token using the secret key
 	signedToken, err := token.SignedString(jwtSecret)
 	if err != nil {
 		return "", err
 	}
+
+	// Print the generated token
+	fmt.Println("Generated JWT Token:", signedToken)
 
 	return signedToken, nil
 }

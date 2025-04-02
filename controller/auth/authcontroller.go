@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
@@ -23,7 +22,6 @@ func InitFirebase(client *auth.Client) {
 	firebaseAuthClient = client
 }
 
-var jwtSecret = []byte("your-secret-key")
 
 // Struct for JWT Claims
 type Claims struct {
@@ -63,12 +61,12 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	// Check user in PostgreSQL and get role
 	role := getUserRoleFromDB(uid, email)
 
-	newJWT, err := generateJWT(uid, email, role)
+	// Generate JWT using the new function
+	newJWT, err := middleware.GenerateJWT(uid, email, role)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate JWT"})
 	}
 
-	// Here, generate your own JWT token (if needed) and send it back
 	return c.JSON(fiber.Map{
 		"message":      "Firebase token verified successfully",
 		"uid":          token.UID,
@@ -76,21 +74,10 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	})
 }
 
-// Generate JWT with Role
-func generateJWT(uid, email, role string) (string, error) {
-	claims := Claims{
-		UID:   uid,
-		Email: email,
-		Role:  role,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(), // 1-day expiry
-			IssuedAt:  time.Now().Unix(),
-		},
-	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
-}
+
+
+
 
 func getUserRoleFromDB(uid, email string) string {
     var user model.User
