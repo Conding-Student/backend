@@ -28,7 +28,7 @@ type User struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
-// Admin model (Separate from User to avoid unnecessary fields)
+// Admin model (Separate from User)
 type Admins struct {
 	ID        uint      `gorm:"primaryKey"`
 	Email     string    `gorm:"unique;not null"`
@@ -68,14 +68,16 @@ type ApartmentImage struct {
 	ImageURL    string `gorm:"not null"`
 }
 
-// Inquiry model
+// Inquiry model (With automatic expiration & notification)
 type Inquiry struct {
 	ID          uint      `gorm:"primaryKey"`
 	TenantID    uint      `gorm:"not null"`
 	ApartmentID uint      `gorm:"not null"`
 	Message     string    `gorm:"not null"`
-	Status      string    `gorm:"not null;default:'Pending'"` // "Pending", "Responded", "Expired"
+	Status      string    `gorm:"not null;default:'Pending'"` // "Pending", "Responded", "Expiring", "Expired"
 	CreatedAt   time.Time `json:"created_at"`
+	ExpiresAt   time.Time `gorm:"not null"`               // Automatically set to CreatedAt + 7 days
+	Notified    bool      `gorm:"not null;default:false"` // Tracks if a notification was sent
 }
 
 // Amenity model

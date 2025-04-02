@@ -52,6 +52,9 @@ func CreateInquiry(c *fiber.Ctx) error {
 		})
 	}
 
+	// 📅 Set expiration time to one week from the current time
+	expirationTime := time.Now().Add(7 * 24 * time.Hour) // 1 week from now
+
 	// 📝 Create inquiry entry
 	inquiry := model.Inquiry{
 		TenantID:    tenantID,
@@ -59,6 +62,7 @@ func CreateInquiry(c *fiber.Ctx) error {
 		Message:     req.Message,
 		Status:      "Pending", // Default status
 		CreatedAt:   time.Now(),
+		ExpiresAt:   expirationTime, // Set the expiration date
 	}
 
 	// 🛠 Save inquiry in DB
@@ -79,6 +83,7 @@ func CreateInquiry(c *fiber.Ctx) error {
 			"apartment_id": inquiry.ApartmentID,
 			"message":      inquiry.Message,
 			"status":       inquiry.Status,
+			"expires_at":   inquiry.ExpiresAt, // Return expiration date in response
 		},
 	})
 }

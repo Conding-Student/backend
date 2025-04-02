@@ -55,11 +55,15 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/user/pending", controller.GetPendingUsers) // Fetch unverified users
 	app.Put("/user/verify/:id", controller.VerifyUsers)  // Approve/Reject a users
 
-	//route for getting tenants inquiry
+	//route for getting / displaying tenants inquiry
 	app.Get("/tenants/inquiry", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
 	app.Put("/tenants/inquiry/update/:id", landlordcontroller.UpdateInquiryStatus)                      // Approve/Reject a users
-	//routes for tenants
+
+	//routes for tenants application inquiry and viewing approved dashboad
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartments)                   //Display all the Approved apartment
 	app.Post("/api/inquiry/application", middleware.AuthMiddleware, tenantscontroller.CreateInquiry) //inquire in specific apartment
+
+	//rountes for automatically deleting tenants inquiry
+	app.Get("/inquiries/cleanup", middleware.AuthMiddleware, tenantscontroller.NotifyPendingInquiries)
 
 }
