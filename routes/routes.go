@@ -31,8 +31,6 @@ func AppRoutes(app *fiber.App) {
 	//app.Get("/get/user/:id", controller.GetUser)
 	//app.Get("/get/all/user", controller.GetAllUsers)
 	//testing
-
-
 	// app.Post("/registertenant/account", Usercontroller.RegisterTenant)
 	// app.Post("/registerlandlord/account", Usercontroller.RegisterLandlord)
 	// app.Post("/loginuser/account", Usercontroller.LoginUser)
@@ -48,6 +46,9 @@ func AppRoutes(app *fiber.App) {
 	// // //route for apartment verification
 	// // app.Get("/apartments/pending", controller.GetPendingApartments) // Fetch unverified apartments
 	// // app.Put("/apartments/verify/:id", controller.VerifyApartment)   // Approve/Reject an apartment
+	//route for apartment verification
+	//app.Get("/apartments/pending", controller.GetPendingApartments) // Fetch unverified apartments
+	//app.Put("/apartments/verify/:id", controller.VerifyApartment)   // Approve/Reject an apartment
 
 	// // //Landlord confirms "rejected" apartment info
 	// // app.Delete("/apartment/:id/delete", controller.ConfirmLandlord) // landlord confirms rejected apartment
@@ -63,4 +64,7 @@ func AppRoutes(app *fiber.App) {
 	// app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartments)                   //Display all the Approved apartment
 	// app.Post("/api/inquiry/application", middleware.AuthMiddleware, tenantscontroller.CreateInquiry) //inquire in specific apartment
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
+	//rountes for automatically deleting tenants inquiry
+	// app.Get("/inquiries/cleanup", middleware.AuthMiddleware, tenantscontroller.NotifyPendingInquiries)
+
 }
