@@ -61,24 +61,24 @@ func FetchApprovedApartments(c *fiber.Ctx) error {
 
 		// ✅ Append data to response
 		response = append(response, fiber.Map{
-			"apartment_id":   apartment.ID,
-			"property_name":  apartment.PropertyName,
-			"address":        apartment.Address,
-			"property_type":  apartment.PropertyType,
-			"rent_price":     apartment.RentPrice,
-			"location_link":  apartment.LocationLink,
-			"landmarks":      apartment.Landmarks,
-			"contact_number": apartment.ContactNumber,
-			"email":          apartment.Email,
-			"facebook":       apartment.Facebook,
-			"status":         apartment.Status,
-			"landlord_id":    apartment.LandlordID, // ✅ Now explicitly fetching landlord ID
-			"owner_first":    apartment.FirstName,
-			"owner_last":     apartment.LastName,
-			"owner_email":    apartment.Email,
-			"amenities":      amenities,
-			"house_rules":    houseRules,
-			"image_urls":     imageUrls,
+			"apartment_id":  apartment.ID,
+			"property_name": apartment.PropertyName,
+			"address":       apartment.Address,
+			"property_type": apartment.PropertyType,
+			"rent_price":    apartment.RentPrice,
+			"location_link": apartment.LocationLink,
+			"landmarks":     apartment.Landmarks,
+			//	"contact_number": apartment.ContactNumber,
+			"email": apartment.Email,
+			//	"facebook":       apartment.Facebook,
+			"status":      apartment.Status,
+			"landlord_id": apartment.LandlordID, // ✅ Now explicitly fetching landlord ID
+			"owner_first": apartment.FirstName,
+			"owner_last":  apartment.LastName,
+			"owner_email": apartment.Email,
+			"amenities":   amenities,
+			"house_rules": houseRules,
+			"image_urls":  imageUrls,
 		})
 	}
 

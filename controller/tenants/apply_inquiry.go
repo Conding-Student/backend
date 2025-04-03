@@ -28,7 +28,7 @@ func CreateInquiry(c *fiber.Ctx) error {
 	}
 
 	// 🆔 Extract Tenant ID safely from JWT claims
-	tenantIDFloat, ok := userClaims["id"].(float64)
+	tenantIDFloat, ok := userClaims["uid"].(float64)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Unauthorized: Invalid user ID in token",
