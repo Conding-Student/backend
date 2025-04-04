@@ -15,9 +15,10 @@ type Admins struct {
 	Password  string    `gorm:"not null"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
 type User struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement"`
-	Uid           string    `gorm:"uniqueIndex"`
+	Uid           string    `gorm:"uniqueIndex"` // Unique user identifier
 	Email         string    `gorm:"unique"`
 	PhoneNumber   string    `json:"phone_number"`
 	Password      string    `json:"password,omitempty"` // Optional for email sign-up
@@ -73,13 +74,16 @@ type ApartmentImage struct {
 // Inquiry model (With automatic expiration & notification)
 type Inquiry struct {
 	ID          uint      `gorm:"primaryKey"`
-	TenantID    uint      `gorm:"not null;index"`
+	UID         string    `gorm:"not null"` // This links to the `Uid` of User (Tenant)
 	ApartmentID uint      `gorm:"not null;index"`
 	Message     string    `gorm:"not null"`
 	Status      string    `gorm:"not null;default:'Pending'"` // "Pending", "Responded", "Expiring", "Expired"
 	CreatedAt   time.Time `json:"created_at"`
 	ExpiresAt   time.Time `gorm:"not null"`               // Automatically set to CreatedAt + 7 days
 	Notified    bool      `gorm:"not null;default:false"` // Tracks if a notification was sent
+
+	// Relationship with User (Tenant)
+	User User `gorm:"foreignKey:UID;references:Uid"`
 }
 
 // Amenity model

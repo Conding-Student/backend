@@ -40,13 +40,21 @@ func AppRoutes(app *fiber.App) {
 	// app.Post("/loginuser/account", Usercontroller.LoginUser)
 
 	//app.Post("/addrentallisting", landlordcontroller.CreateApartment)
-	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)                 //insert application for landlord apartment
-	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord)        //Property get by landlord
-	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller.SetBusinessName)          // insert business name
-	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller.SetBusinessPermitImage) //business permit
+	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)                    //insert application for landlord apartment
+	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord)           //Property get by landlord
+	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller.SetBusinessName)             // insert business name
+	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller.SetBusinessPermitImage)    //business permit
+	app.Get("/tenants/inquiry/display", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
+	app.Put("/update-inquiry-status/:uid", landlordcontroller.UpdateInquiryStatusByLandlord)                    // Approve/Reject a users inquiry
+
+	// Admin
+	app.Put("/admin/promoting/account/:uid", controller.UpdateUserType)
 
 	//	FOR ALL
 	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
+
+	// Tenant
+	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)
 	// route for admin registration/login
 	// route for admin registration/login
 	app.Post("/admin/register", controller.RegisterAdmin) // register admin
@@ -64,8 +72,6 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/user/verify/:id", controller.VerifyUsers)  // Approve/Reject a users
 
 	//route for getting / displaying tenants inquiry
-	app.Get("/tenants/inquiry", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
-	app.Put("/tenants/inquiry/update/:id", landlordcontroller.UpdateInquiryStatus)                      // Approve/Reject a users
 
 	//routes for tenants application inquiry and viewing approved dashboad
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartments) //Display all the Approved apartment

@@ -41,7 +41,7 @@ func CreateApartment(c *fiber.Ctx) error {
 
 	// 🔍 Verify if the user is registered as a landlord
 	var user model.User
-	if err := middleware.DBConn.Where("uid = ? AND role = ?", uid, "landlord").First(&user).Error; err != nil {
+	if err := middleware.DBConn.Where("uid = ? AND user_type = ?", uid, "Landlord").First(&user).Error; err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Unauthorized: User is not a registered landlord",
 		})
