@@ -67,15 +67,15 @@ type Apartment struct {
 // Apartment images
 type ApartmentImage struct {
 	ID          uint   `gorm:"primaryKey"`
-	ApartmentID uint   `gorm:"not null;index"`
+	ApartmentID uint   `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
 	ImageURL    string `gorm:"not null"`
 }
 
 // Inquiry model (With automatic expiration & notification)
 type Inquiry struct {
 	ID          uint      `gorm:"primaryKey"`
-	UID         string    `gorm:"not null"` // This links to the `Uid` of User (Tenant)
-	ApartmentID uint      `gorm:"not null;index"`
+	UID         string    `gorm:"not null"`                        // This links to the `Uid` of User (Tenant)
+	ApartmentID uint      `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
 	Message     string    `gorm:"not null"`
 	Status      string    `gorm:"not null;default:'Pending'"` // "Pending", "Responded", "Expiring", "Expired"
 	CreatedAt   time.Time `json:"created_at"`
@@ -95,7 +95,7 @@ type Amenity struct {
 // Apartment Amenities (Many-to-Many Relationship)
 type ApartmentAmenity struct {
 	ID          uint `gorm:"primaryKey"`
-	ApartmentID uint `gorm:"not null;index"`
+	ApartmentID uint `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
 	AmenityID   uint `gorm:"not null;index"`
 }
 
@@ -108,6 +108,14 @@ type HouseRule struct {
 // Apartment House Rules (Many-to-Many Relationship)
 type ApartmentHouseRule struct {
 	ID          uint `gorm:"primaryKey"`
-	ApartmentID uint `gorm:"not null;index"`
+	ApartmentID uint `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
 	HouseRuleID uint `gorm:"not null;index"`
+}
+
+type Wishlist struct {
+	ID          uint      `gorm:"primaryKey"`
+	UID         string    `gorm:"not null"` // Tenant's UID
+	ApartmentID uint      `gorm:"not null"` // Foreign key referencing the Apartment model's ID
+	CreatedAt   time.Time `json:"created_at"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;onDelete:CASCADE"` // Foreign key relationship with Apartment, cascading delete
 }

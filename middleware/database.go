@@ -38,6 +38,7 @@ func ConnectDB() bool {
 		&model.ApartmentAmenity{},
 		&model.HouseRule{},
 		&model.ApartmentHouseRule{},
+		&model.Wishlist{},
 	)
 
 	if err != nil {

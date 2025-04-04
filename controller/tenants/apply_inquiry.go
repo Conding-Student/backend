@@ -30,9 +30,8 @@ func GetUIDFromToken(c *fiber.Ctx) (string, error) {
 	return uid, nil
 }
 
-// Function to create a new inquiry
 func CreateInquiry(c *fiber.Ctx) error {
-	// ✅ Extract UID from JWT Token (this will be the user who is making the inquiry)
+	// ✅ Extract UID from JWT Token
 	uid, err := GetUIDFromToken(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -40,7 +39,7 @@ func CreateInquiry(c *fiber.Ctx) error {
 		})
 	}
 
-	// ✅ Parse request body to get apartment ID and message
+	// ✅ Parse request body
 	var req CreateInquiryRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -48,11 +47,30 @@ func CreateInquiry(c *fiber.Ctx) error {
 		})
 	}
 
-	// ✅ Current time and expiration time (7 days from now)
+	// ✅ Check if the tenant already submitted an inquiry for the same apartment
+	var count int64
+	err = middleware.DBConn.
+		Table("inquiries").
+		Where("uid = ? AND apartment_id = ?", uid, req.ApartmentID).
+		Count(&count).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error during duplicate check",
+			"error":   err.Error(),
+		})
+	}
+
+	if count > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "You’ve already submitted an inquiry for this apartment.",
+		})
+	}
+
+	// ✅ Create inquiry
 	currentTime := time.Now()
 	expirationTime := currentTime.Add(7 * 24 * time.Hour)
 
-	// ✅ Insert the new inquiry into the database
 	query := `INSERT INTO inquiries (uid, apartment_id, message, status, created_at, expires_at, notified) 
 	          VALUES (?, ?, ?, 'Pending', ?, ?, false)`
 
