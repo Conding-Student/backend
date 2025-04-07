@@ -14,7 +14,6 @@ type User struct {
 	Uid           string    `gorm:"uniqueIndex"`
 	Email         string    `gorm:"unique"`
 	PhoneNumber   string    `json:"phone_number"`
-	Password      string    `json:"password,omitempty"` // Optional for email sign-up
 	Fullname     string    `json:"fullname"`
 	Age           int       `json:"age"`
 	Address       string    `json:"address"`

@@ -66,5 +66,5 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
 	//rountes for automatically deleting tenants inquiry
 	// app.Get("/inquiries/cleanup", middleware.AuthMiddleware, tenantscontroller.NotifyPendingInquiries)
-
+	app.Post("/api/auth/save-user", authcontroller.SaveUser)
 }

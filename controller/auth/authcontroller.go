@@ -72,15 +72,15 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	}
 
 	email, ok := emailClaim.(string)
-	if !ok {
+	if !ok || email == "" {
 		log.Println("[ERROR] Email claim is not a valid string")
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid Firebase token - email format incorrect",
 		})
 	}
 
-	// Get user role from DB or create a new user
-	role := getUserRoleFromDB(token.UID, email)
+	// Store user in DB and get role
+	role := saveOrUpdateUser(token.UID, email)
 
 	// Generate JWT
 	newJWT, err := middleware.GenerateJWT(token.UID, email, role)
@@ -95,39 +95,57 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message":      "Firebase token verified successfully",
 		"uid":          token.UID,
+		"email":        email,
+		"role":         role,
 		"access_token": newJWT,
 	})
 }
 
-// Get user role from database or create a new user
-func getUserRoleFromDB(uid, email string) string {
+// Save or update user in database
+func saveOrUpdateUser(uid, email string) string {
 	var user model.User
-	var role string
+	var role string = "Tenant" // Default role for new users
 
+	// Check if user already exists
 	result := middleware.DBConn.Where("uid = ?", uid).First(&user)
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			// Assign default role
-			role = "Tenant"
+			// Fetch additional user details from Firebase
+			firebaseUser, err := firebaseAuthClient.GetUser(context.Background(), uid)
+			if err != nil {
+				log.Println("[ERROR] Failed to fetch user details from Firebase:", err)
+				return role
+			}
 
-			// Insert new user (without manually setting ID)
+			// Extract Firebase user details
+			provider := "firebase"
+			if len(firebaseUser.ProviderUserInfo) > 0 {
+				provider = firebaseUser.ProviderUserInfo[0].ProviderID
+			}
+
+			// Create new user entry
 			newUser := model.User{
-				Uid:      uid,
-				Email:    email,
-				UserType: role,
+				Uid:        uid,
+				Email:      email,
+				UserType:   role,
+				PhoneNumber: firebaseUser.PhoneNumber,
+				Provider:   provider,
+				PhotoURL:   firebaseUser.PhotoURL,
+				Fullname:   firebaseUser.DisplayName,
+				Birthday:   "", // Requires frontend to send the birthday separately
 			}
 
 			// Save new user in the database
-			err := middleware.DBConn.Create(&newUser).Error
+			err = middleware.DBConn.Create(&newUser).Error
 			if err != nil {
 				log.Println("[ERROR] Failed to insert new user:", err)
-				return "Tenant"
+				return role
 			}
 			fmt.Println("🆕 New user added:", email, "Role:", role)
 		} else {
 			log.Println("[ERROR] Database error while fetching user role:", result.Error)
-			return "Tenant"
+			return role
 		}
 	} else {
 		role = user.UserType
