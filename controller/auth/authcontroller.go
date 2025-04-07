@@ -82,12 +82,11 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	// Store user in DB and get role
 	role, ok := saveOrUpdateUser(token.UID, email)
 
-if !ok {
-	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		"error": "Failed to store user profile",
-	})
-}
-
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to store user profile",
+		})
+	}
 
 	// Generate JWT
 	newJWT, err := middleware.GenerateJWT(token.UID, email, role)
@@ -118,7 +117,7 @@ func saveOrUpdateUser(uid, email string) (string, bool) {
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			// Fetch user details from Firebase
+			// // Fetch additional user details from Firebase
 			firebaseUser, err := firebaseAuthClient.GetUser(context.Background(), uid)
 			if err != nil {
 				log.Println("[ERROR] Failed to fetch user details from Firebase:", err)
@@ -138,12 +137,14 @@ func saveOrUpdateUser(uid, email string) (string, bool) {
 
 			// Create new user record
 			newUser := model.User{
-				Uid:      uid,
-				Email:    email,
-				UserType: defaultRole,
-				Provider: provider,
-				Fullname: fullname,
-				PhotoURL: photoURL,
+				Uid:         uid,
+				Email:       email,
+				UserType:    role,
+				PhoneNumber: firebaseUser.PhoneNumber,
+				Provider:    provider,
+				PhotoURL:    firebaseUser.PhotoURL,
+				Fullname:    firebaseUser.DisplayName,
+				Birthday:    "", // Requires frontend to send the birthday separately
 			}
 
 			// Insert into DB
