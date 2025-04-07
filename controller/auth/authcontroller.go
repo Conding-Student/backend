@@ -111,7 +111,7 @@ func saveOrUpdateUser(uid, email string) string {
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			// Fetch additional user details from Firebase
+			// // Fetch additional user details from Firebase
 			firebaseUser, err := firebaseAuthClient.GetUser(context.Background(), uid)
 			if err != nil {
 				log.Println("[ERROR] Failed to fetch user details from Firebase:", err)
@@ -126,14 +126,14 @@ func saveOrUpdateUser(uid, email string) string {
 
 			// Create new user entry
 			newUser := model.User{
-				Uid:        uid,
-				Email:      email,
-				UserType:   role,
+				Uid:         uid,
+				Email:       email,
+				UserType:    role,
 				PhoneNumber: firebaseUser.PhoneNumber,
-				Provider:   provider,
-				PhotoURL:   firebaseUser.PhotoURL,
-				Fullname:   firebaseUser.DisplayName,
-				Birthday:   "", // Requires frontend to send the birthday separately
+				Provider:    provider,
+				PhotoURL:    firebaseUser.PhotoURL,
+				Fullname:    firebaseUser.DisplayName,
+				Birthday:    "", // Requires frontend to send the birthday separately
 			}
 
 			// Save new user in the database
