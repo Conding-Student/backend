@@ -79,46 +79,46 @@ func VerifyApartment(c *fiber.Ctx) error {
 }
 
 // Delete Apartment when landlord confirms
-func ConfirmLandlord(c *fiber.Ctx) error {
-	apartmentID := c.Params("id")
-	var req model.DeleteApartmentRequest
+// func ConfirmLandlord(c *fiber.Ctx) error {
+// 	apartmentID := c.Params("uid")
+// 	var req model.DeleteApartmentRequest
 
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request format",
-		})
-	}
+// 	if err := c.BodyParser(&req); err != nil {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "Invalid request format",
+// 		})
+// 	}
 
-	if !req.Confirm {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Landlord must confirm deletion",
-		})
-	}
+// 	if !req.Confirm {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "Landlord must confirm deletion",
+// 		})
+// 	}
 
-	var apartment model.Apartment
-	result := middleware.DBConn.First(&apartment, apartmentID)
-	if result.Error != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Apartment not found",
-		})
-	}
+// 	var apartment model.Apartment
+// 	result := middleware.DBConn.First(&apartment, apartmentID)
+// 	if result.Error != nil {
+// 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+// 			"error": "Apartment not found",
+// 		})
+// 	}
 
-	// //Delete if only "rejected"
-	if apartment.Status != "Rejected" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Only rejected apartments can be deleted",
-		})
-	}
+// 	// //Delete if only "rejected"
+// 	if apartment.Status != "Rejected" {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "Only rejected apartments can be deleted",
+// 		})
+// 	}
 
-	// Delete the apartment
-	deleteResult := middleware.DBConn.Delete(&apartment)
-	if deleteResult.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to delete apartment",
-		})
-	}
+// 	// Delete the apartment
+// 	deleteResult := middleware.DBConn.Delete(&apartment)
+// 	if deleteResult.Error != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to delete apartment",
+// 		})
+// 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Apartment deleted successfully",
-	})
-}
+// 	return c.JSON(fiber.Map{
+// 		"message": "Apartment deleted successfully",
+// 	})
+// }
