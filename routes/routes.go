@@ -23,24 +23,6 @@ func AppRoutes(app *fiber.App) {
 		return c.SendString("RentXpert! go, go, go lang!")
 	})
 
-	// CREATE YOUR ENDPOINTS HERE
-	//app.Get("/try", controller.SampleController2)
-	//app.Get("/try1", controller.SampleController1)
-
-	//app.Post("/create", controller.UserRegistration)
-	//app.Post("/read", controller.ReadUser)
-	//app.Post("/create", controller.CreateBook)
-	//app.Get("/get/all/books", controller.GetAllBooks)
-	//app.Get("/get/books/:id", controller.Getbook)
-	//app.Put("/update/book/:id", controller.UpdateBook)
-	//app.Post("/register/user", controller.RegisterUser)
-	//app.Get("/get/user/:id", controller.GetUser)
-	//app.Get("/get/all/user", controller.GetAllUsers)
-	//testing
-	// app.Post("/registertenant/account", Usercontroller.RegisterTenant)
-	// app.Post("/registerlandlord/account", Usercontroller.RegisterLandlord)
-	// app.Post("/loginuser/account", Usercontroller.LoginUser)
-
 	//////////////////// Landlord //////////////////
 	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)          //insert application for landlord apartment
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord) //Property get by landlord
@@ -50,6 +32,9 @@ func AppRoutes(app *fiber.App) {
 
 	app.Get("/tenants/inquiry/display", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
 	app.Put("/update-inquiry-status/:uid", landlordcontroller.FetchInquiriesByLandlord)                         // Approve/Reject a users inquiry
+
+	app.Delete("/apartment/delete/:id", middleware.AuthMiddleware, landlordcontroller.DeleteApartment) // landlord confirms rejected apartment
+
 	//////////////////// Landlord //////////////////
 
 	//////////////////// Admin //////////////////
@@ -65,7 +50,7 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/admin/promoting/account/:uid", admincontroller.UpdateUserType) //update user type tenant / land;lord
 	app.Get("/apartments/pending", admincontroller.GetPendingApartments)     // Fetch unverified apartments
 	app.Put("/apartments/verify/:id", admincontroller.VerifyApartment)       // Approve/Reject an apartment
-	app.Delete("/apartment/:id/delete", admincontroller.ConfirmLandlord)     // landlord confirms rejected apartment
+
 	//////////////////// Admin //////////////////
 
 	//	FOR ALL
@@ -80,6 +65,11 @@ func AppRoutes(app *fiber.App) {
 	app.Delete("/wishlist/:apartment_id", middleware.AuthMiddleware, tenantscontroller.RemoveFromWishlist)
 
 	//////////////////// Tenant //////////////////
+
+	//////////////////// ALL //////////////////
+	app.Put("/api/user/update-contact", middleware.AuthMiddleware, landlordcontroller2.UpdateContactInfo)
+
+	//////////////////// ALL //////////////////
 
 	//route for landlord verification
 	app.Get("/user/pending", admincontroller.GetPendingUsers) // Fetch unverified users

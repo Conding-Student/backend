@@ -38,7 +38,7 @@ func GetFilteredUserDetails(c *fiber.Ctx) error {
 	// 📌 Base query with selected fields only
 	query := middleware.DBConn.Table("users").
 		Select("uid, email, phone_number, fullname, address, valid_id, account_status, user_type").
-		Where("account_status != ?", "deleted")
+		Where("account_status != ?", "deleteds")
 
 	// ✅ Apply filters
 	if userType != "" {
@@ -205,7 +205,7 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 	}
 
 	// Soft delete by updating account_status
-	user.AccountStatus = "deleted"
+	user.AccountStatus = "Deleted"
 
 	if err := middleware.DBConn.Save(&user).Error; err != nil {
 		log.Println("[ERROR] Failed to soft-delete user:", err)

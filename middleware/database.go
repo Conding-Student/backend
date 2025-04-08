@@ -30,8 +30,8 @@ func ConnectDB() bool {
 	err = DBConn.AutoMigrate(
 		&model.User{},
 		&model.Admins{},
-		&model.LandlordProfile{},
 		&model.Apartment{},
+		&model.LandlordProfile{},
 		&model.ApartmentImage{},
 		&model.Inquiry{},
 		&model.Amenity{},

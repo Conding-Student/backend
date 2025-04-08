@@ -26,14 +26,27 @@ type User struct {
 	Address       string    `json:"address"`
 	ValidID       string    `json:"valid_id"`
 	AccountStatus string    `gorm:"not null;default:'Pending'" json:"account_status"` // "Verified" / "Unverified"
-	Provider      string    `gorm:"not null" json:"provider"`   
+	Provider      string    `gorm:"not null" json:"provider"`
 	PhotoURL      string    `json:"photo_url"`
 	UserType      string    `gorm:"not null" json:"user_type"` // "Landlord", "Tenant", "Admin"
-	Birthday      string    `json:"birthday"`
+	Birthday      time.Time `json:"birthday"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+// Apartment model – note that we removed the association back to User
+type Apartment struct {
+	ID           uint      `gorm:"primaryKey"`
+	Uid          string    `gorm:"not null"` // Landlord's UID; no foreign key constraint here.
+	PropertyName string    `gorm:"not null"`
+	Address      string    `gorm:"not null"`
+	PropertyType string    `gorm:"not null"`
+	RentPrice    float64   `gorm:"not null"`
+	LocationLink string    `gorm:"not null"`
+	Landmarks    string    `gorm:"not null"`
+	Status       string    `gorm:"not null;default:'Pending'"`
+	CreatedAt    time.Time `json:"created_at"`
+}
 
 // Admin model (Separate from User)
 type Admin struct {
@@ -51,40 +64,27 @@ type LandlordProfile struct {
 	BusinessPermit string `json:"business_permit"`
 }
 
-// Apartment model
-type Apartment struct {
-	ID           uint      `gorm:"primaryKey"`
-	Uid          string    `gorm:"not null"` // References User.Uid (Landlord)
-	PropertyName string    `gorm:"not null"`
-	Address      string    `gorm:"not null"`
-	PropertyType string    `gorm:"not null"` // "Bed Space" or "Apartment"
-	RentPrice    float64   `gorm:"not null"`
-	LocationLink string    `gorm:"not null"`
-	Landmarks    string    `gorm:"not null"`
-	Status       string    `gorm:"not null;default:'Pending'"` // "Pending", "Approved", "Rejected", "Open"
-	CreatedAt    time.Time `json:"created_at"`
-}
-
 // Apartment images
 type ApartmentImage struct {
-	ID          uint   `gorm:"primaryKey"`
-	ApartmentID uint   `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
-	ImageURL    string `gorm:"not null"`
+	ID          uint      `gorm:"primaryKey"`
+	ApartmentID uint      `gorm:"not null;index;constraint:OnDelete:CASCADE"`
+	ImageURL    string    `gorm:"not null"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 // Inquiry model (With automatic expiration & notification)
 type Inquiry struct {
 	ID          uint      `gorm:"primaryKey"`
-	UID         string    `gorm:"not null"`                        // This links to the `Uid` of User (Tenant)
-	ApartmentID uint      `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
+	UID         string    `gorm:"not null"`
+	ApartmentID uint      `gorm:"not null;index;constraint:OnDelete:CASCADE"`
 	Message     string    `gorm:"not null"`
-	Status      string    `gorm:"not null;default:'Pending'"` // "Pending", "Responded", "Expiring", "Expired"
+	Status      string    `gorm:"not null;default:'Pending'"`
 	CreatedAt   time.Time `json:"created_at"`
-	ExpiresAt   time.Time `gorm:"not null"`               // Automatically set to CreatedAt + 7 days
-	Notified    bool      `gorm:"not null;default:false"` // Tracks if a notification was sent
+	ExpiresAt   time.Time `gorm:"not null"`
+	Notified    bool      `gorm:"not null;default:false"`
 
-	// Relationship with User (Tenant)
-	User User `gorm:"foreignKey:UID;references:Uid"`
+	User      User      `gorm:"foreignKey:UID;references:Uid"`
+	Apartment Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 // Amenity model
@@ -95,9 +95,10 @@ type Amenity struct {
 
 // Apartment Amenities (Many-to-Many Relationship)
 type ApartmentAmenity struct {
-	ID          uint `gorm:"primaryKey"`
-	ApartmentID uint `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
-	AmenityID   uint `gorm:"not null;index"`
+	ID          uint      `gorm:"primaryKey"`
+	ApartmentID uint      `gorm:"not null;index;constraint:OnDelete:CASCADE"`
+	AmenityID   uint      `gorm:"not null;index"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 // House Rule model
@@ -108,15 +109,16 @@ type HouseRule struct {
 
 // Apartment House Rules (Many-to-Many Relationship)
 type ApartmentHouseRule struct {
-	ID          uint `gorm:"primaryKey"`
-	ApartmentID uint `gorm:"not null;index;onDelete:CASCADE"` // Ensure cascading delete
-	HouseRuleID uint `gorm:"not null;index"`
+	ID          uint      `gorm:"primaryKey"`
+	ApartmentID uint      `gorm:"not null;index;constraint:OnDelete:CASCADE"`
+	HouseRuleID uint      `gorm:"not null;index"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 type Wishlist struct {
 	ID          uint      `gorm:"primaryKey"`
-	UID         string    `gorm:"not null"` // Tenant's UID
-	ApartmentID uint      `gorm:"not null"` // Foreign key referencing the Apartment model's ID
+	UID         string    `gorm:"not null"`                             // Tenant's UID
+	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
 	CreatedAt   time.Time `json:"created_at"`
-	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;onDelete:CASCADE"` // Foreign key relationship with Apartment, cascading delete
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }

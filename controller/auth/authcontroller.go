@@ -3,11 +3,11 @@ package controller
 import (
 	"context"
 	"fmt"
-	"log"
-	"net/http"
-
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
+	"log"
+	"net/http"
+	"time"
 
 	"firebase.google.com/go/v4/auth"
 	"github.com/gofiber/fiber/v2"
@@ -133,7 +133,7 @@ func saveOrUpdateUser(uid, email string) string {
 				Provider:    provider,
 				PhotoURL:    firebaseUser.PhotoURL,
 				Fullname:    firebaseUser.DisplayName,
-				Birthday:    "", // Requires frontend to send the birthday separately
+				Birthday:    time.Time{}, // Requires frontend to send the birthday separately
 			}
 
 			// Save new user in the database
