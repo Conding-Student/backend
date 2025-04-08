@@ -9,13 +9,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Struct for parsing business name request
-type BusinessNameRequest struct {
-	BusinessName string `json:"business_name"`
+// Struct for parsing business permit image URL request
+type BusinessPermitRequest struct {
+	BusinessPermit string `json:"business_permit_image_url"` // URL of the business permit image
 }
 
-// ✅ Function to insert/update business name of the landlord
-func SetBusinessName(c *fiber.Ctx) error {
+// ✅ Function to insert/update business permit image URL of the landlord
+func SetUpdateBusinessPermitImage(c *fiber.Ctx) error {
 	// 🔍 Extract user claims from JWT
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)
 	if !ok {
@@ -33,7 +33,7 @@ func SetBusinessName(c *fiber.Ctx) error {
 	}
 
 	// 📩 Parse request body
-	var req BusinessNameRequest
+	var req BusinessPermitRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request format",
@@ -42,36 +42,28 @@ func SetBusinessName(c *fiber.Ctx) error {
 	}
 
 	// 📌 Validate required fields
-	if req.BusinessName == "" {
+	if req.BusinessPermit == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Missing required field: business_name",
+			"message": "Missing required field: business_permit_image_url",
 		})
 	}
 
-	// 🏠 Fetch landlord profile based on UID
+	// 🏠 Find or create landlord profile based on UID
 	var landlordProfile model.LandlordProfile
 	if err := middleware.DBConn.Where("uid = ?", uid).First(&landlordProfile).Error; err != nil {
-		// If landlord profile doesn't exist, create a new one
-		if err.Error() == "record not found" {
-			landlordProfile = model.LandlordProfile{
-				Uid:          uid,
-				BusinessName: req.BusinessName,
-			}
-			if err := middleware.DBConn.Create(&landlordProfile).Error; err != nil {
-				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-					"message": "Database error: Unable to create landlord profile",
-					"error":   err.Error(),
-				})
-			}
-		} else {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to fetch landlord profile",
+		// If no profile exists, create a new one
+		if err := middleware.DBConn.Create(&model.LandlordProfile{
+			Uid:            uid,
+			BusinessPermit: req.BusinessPermit,
+		}).Error; err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Database error: Unable to create landlord profile",
 				"error":   err.Error(),
 			})
 		}
 	} else {
-		// If landlord profile exists, update business name
-		landlordProfile.BusinessName = req.BusinessName
+		// If profile exists, update the business permit image URL
+		landlordProfile.BusinessPermit = req.BusinessPermit
 		if err := middleware.DBConn.Save(&landlordProfile).Error; err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Database error: Unable to update landlord profile",
@@ -82,7 +74,10 @@ func SetBusinessName(c *fiber.Ctx) error {
 
 	// 🎉 Success Response
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message":       "Business name updated successfully",
-		"business_name": landlordProfile.BusinessName,
+		"message": "Business permit image URL updated successfully",
+		"data": fiber.Map{
+			"uid":             uid,
+			"business_permit": req.BusinessPermit,
+		},
 	})
 }

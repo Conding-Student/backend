@@ -8,6 +8,7 @@ import (
 	// Usercontroller "intern_template_v1/controller/auth"
 	all "intern_template_v1/controller/all"
 	landlordcontroller "intern_template_v1/controller/landlord"
+	landlordcontroller2 "intern_template_v1/controller/landlord/business_profile"
 	tenantscontroller "intern_template_v1/controller/tenants"
 	"intern_template_v1/middleware"
 
@@ -40,10 +41,12 @@ func AppRoutes(app *fiber.App) {
 	// app.Post("/loginuser/account", Usercontroller.LoginUser)
 
 	//app.Post("/addrentallisting", landlordcontroller.CreateApartment)
-	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)                    //insert application for landlord apartment
-	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord)           //Property get by landlord
-	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller.SetBusinessName)             // insert business name
-	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller.SetBusinessPermitImage)    //business permit
+	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)          //insert application for landlord apartment
+	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord) //Property get by landlord
+	//####### CRUD BUSINES PROFILE #################
+	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
+	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
+
 	app.Get("/tenants/inquiry/display", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
 	app.Put("/update-inquiry-status/:uid", landlordcontroller.UpdateInquiryStatusByLandlord)                    // Approve/Reject a users inquiry
 

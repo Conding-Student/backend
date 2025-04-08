@@ -61,13 +61,15 @@ func GetUserProfile(c *fiber.Ctx) error {
 		RetCode: "200",
 		Message: "User profile retrieved successfully",
 		Data: fiber.Map{
-			"uid":       user.Uid,
-			"fullname":  user.Fullname,
-			"email":     email,
-			"address":   user.Address,
-			"user_type": user.UserType,
-			"phone_number":     user.PhoneNumber,
-			"photo_url": user.PhotoURL,
+			"uid":          user.Uid,
+			"fullname":     user.Fullname,
+			"email":        email,
+			"phone_number": user.PhoneNumber,
+			"photo_url":    user.PhotoURL,
+			"address":      user.Address,
+			"user_type":    user.UserType,
+			"birthday":     user.Birthday,
+			"age":          user.Age,
 		},
 	})
 }
