@@ -84,26 +84,26 @@ func CreateApartment(c *fiber.Ctx) error {
 	}
 
 	// Create the apartment
-apartment := model.Apartment{
-    Uid:          uid,
-    PropertyName: req.PropertyName,
-    Address:      address, // Default address
-    PropertyType: req.PropertyType,
-    RentPrice:    req.RentPrice,
-    LocationLink: req.LocationLink,
-    Landmarks:    req.Landmarks,
-    Status:       "Pending", // Default status
-    UserID:       uid, // Assuming 'user_id' should be the same as 'uid'
-}
+	apartment := model.Apartment{
+		Uid:          uid,
+		PropertyName: req.PropertyName,
+		Address:      address, // Default address
+		PropertyType: req.PropertyType,
+		RentPrice:    req.RentPrice,
+		LocationLink: req.LocationLink,
+		Landmarks:    req.Landmarks,
+		Status:       "Pending", // Default status
+		UserID:       uid,       // Assuming 'user_id' should be the same as 'uid'
+	}
 
-// Insert apartment into the apartments table
-if err := tx.Create(&apartment).Error; err != nil {
-    tx.Rollback()
-    return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-        "message": "Database error: Unable to create apartment",
-        "error":   err.Error(),
-    })
-}
+	// Insert apartment into the apartments table
+	if err := tx.Create(&apartment).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error: Unable to create apartment",
+			"error":   err.Error(),
+		})
+	}
 
 	// 🔹 Insert amenities (Avoid duplicates)
 	for _, amenityName := range req.Amenities {
@@ -189,6 +189,10 @@ if err := tx.Create(&apartment).Error; err != nil {
 			"location_link": apartment.LocationLink,
 			"landmarks":     apartment.Landmarks,
 			"status":        apartment.Status,
+			"amenities":     req.Amenities,
+			"house_rules":   req.HouseRules,
+			"image_urls":    req.ImageURLs,
 		},
 	})
+
 }
