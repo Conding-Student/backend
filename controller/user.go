@@ -68,7 +68,6 @@ func GetUserProfile(c *fiber.Ctx) error {
 			"photo_url":    user.PhotoURL,
 			"address":      user.Address,
 			"user_type":    user.UserType,
-			"birthday":     user.Birthday,
 			"age":          user.Age,
 		},
 	})

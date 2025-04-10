@@ -45,6 +45,7 @@ type Apartment struct {
 	LocationLink string    `gorm:"not null"`
 	Landmarks    string    `gorm:"not null"`
 	Status       string    `gorm:"not null;default:'Pending'"`
+	UserID        string    `gorm:"not null"`  // Add this field to reference the landlord's UID
 	CreatedAt    time.Time `json:"created_at"`
 }
 
