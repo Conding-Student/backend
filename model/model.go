@@ -94,7 +94,6 @@ type Inquiry struct {
 	CreatedAt   time.Time `json:"created_at"`
 	ExpiresAt   time.Time `gorm:"not null"`
 	Notified    bool      `gorm:"not null;default:false"`
-
 	User      User      `gorm:"foreignKey:UID;references:Uid"`
 	Apartment Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }

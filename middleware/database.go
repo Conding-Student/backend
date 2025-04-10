@@ -33,6 +33,7 @@ func ConnectDB() bool {
 		&model.Apartment{},
 		&model.LandlordProfile{},
 		&model.ApartmentImage{},
+		&model.ApartmentVideo{},
 		&model.Inquiry{},
 		&model.Amenity{},
 		&model.ApartmentAmenity{},

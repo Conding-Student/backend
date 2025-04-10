@@ -72,6 +72,13 @@ func CreateApartment(c *fiber.Ctx) error {
             "message": "Database error: Unable to start transaction",
         })
     }
+// 🆔 Extract Landlord Uid safely from JWT claims
+uid, ok = userClaims["uid"].(string)
+if !ok || uid == "" {
+    return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+        "message": "Unauthorized: Invalid landlord UID",
+    })
+}
 
     // Create the apartment
     apartment := model.Apartment{
@@ -84,6 +91,7 @@ func CreateApartment(c *fiber.Ctx) error {
         Status:       "Pending", // Default status
         Latitude:     req.Latitude,
         Longitude:    req.Longitude,
+        UserID:      uid, // Assuming UserID is the same as Uid
     }
 
     // Insert apartment into the apartments table
