@@ -34,7 +34,6 @@ type User struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// Apartment model – note that we removed the association back to User
 type Apartment struct {
 	ID           uint      `gorm:"primaryKey"`
 	Uid          string    `gorm:"not null"` // Landlord's UID; no foreign key constraint here.
@@ -45,7 +44,9 @@ type Apartment struct {
 	LocationLink string    `gorm:"not null"`
 	Landmarks    string    `gorm:"not null"`
 	Status       string    `gorm:"not null;default:'Pending'"`
-	UserID        string    `gorm:"not null"`  // Add this field to reference the landlord's UID
+	Latitude     float64   `gorm:"not null"`
+	Longitude    float64   `gorm:"not null"`
+	UserID       string    `gorm:"not null"` // Add this field to reference the landlord's UID
 	CreatedAt    time.Time `json:"created_at"`
 }
 

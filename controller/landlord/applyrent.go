@@ -19,6 +19,8 @@ type ApartmentRequest struct {
 	Amenities    []string `json:"amenities"`
 	HouseRules   []string `json:"house_rules"`
 	ImageURLs    []string `json:"image_urls"`
+	Latitude     float64  `json:"latitude"`  // New field for latitude
+	Longitude    float64  `json:"longitude"` // New field for longitude
 }
 
 // ✅ Function to create an apartment
@@ -63,8 +65,15 @@ func CreateApartment(c *fiber.Ctx) error {
 		})
 	}
 
+	// 📍 Validate latitude and longitude
+	if req.Latitude == 0 || req.Longitude == 0 {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Latitude and Longitude are required and must be valid coordinates",
+		})
+	}
+
 	// 🏡 Default Address Value
-	address := "address"
+	address := "address" // You can later enhance this with geocoding
 
 	// Start transaction
 	tx := middleware.DBConn.Begin()
@@ -87,13 +96,15 @@ func CreateApartment(c *fiber.Ctx) error {
 	apartment := model.Apartment{
 		Uid:          uid,
 		PropertyName: req.PropertyName,
-		Address:      address, // Default address
+		Address:      address, // Default address (you can improve this later)
 		PropertyType: req.PropertyType,
 		RentPrice:    req.RentPrice,
 		LocationLink: req.LocationLink,
 		Landmarks:    req.Landmarks,
-		Status:       "Pending", // Default status
-		UserID:       uid,       // Assuming 'user_id' should be the same as 'uid'
+		Status:       "Pending",     // Default status
+		UserID:       uid,           // Assuming 'user_id' should be the same as 'uid'
+		Latitude:     req.Latitude,  // ✅ Latitude from the request
+		Longitude:    req.Longitude, // ✅ Longitude from the request
 	}
 
 	// Insert apartment into the apartments table
@@ -192,7 +203,8 @@ func CreateApartment(c *fiber.Ctx) error {
 			"amenities":     req.Amenities,
 			"house_rules":   req.HouseRules,
 			"image_urls":    req.ImageURLs,
+			"latitude":      apartment.Latitude,  // Returning latitude in the response
+			"longitude":     apartment.Longitude, // Returning longitude in the response
 		},
 	})
-
 }
