@@ -24,7 +24,7 @@ func main() {
 	}
 	
 
-
+	config.InitCloudinary()
 	// Step 1: Initialize Firebase App
 	firebaseApp := config.InitializeFirebase()
 	fmt.Println("✅ Firebase Initialized:", firebaseApp)

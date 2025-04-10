@@ -2,6 +2,7 @@ package routes
 
 import (
 	//"intern_template_v1/controller"
+	"intern_template_v1/controller"
 	admincontroller "intern_template_v1/controller/admin"
 	admincontroller2 "intern_template_v1/controller/admin/user_management"
 	authcontroller "intern_template_v1/controller/auth"
@@ -83,4 +84,13 @@ func AppRoutes(app *fiber.App) {
 	//rountes for automatically deleting tenants inquiry
 	//app.Get("/inquiries/cleanup", middleware.AuthMiddleware, tenantscontroller.NotifyPendingInquiries)
 
+
+
+	//routes for uploading images and videos
+	app.Post("/apartment/:apartment_id/image", controller.UploadApartmentImageHandler)
+	app.Post("/upload/video", controller.UploadVideoHandler)
+
+
 }
+
+
