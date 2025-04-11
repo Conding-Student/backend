@@ -86,11 +86,6 @@ func AppRoutes(app *fiber.App) {
 
 
 
-	//routes for uploading images and videos
-	// app.Post("/apartment/:apartment_id/image", controller.UploadApartmentImageHandler)
-	// app.Post("/upload/video", controller.UploadVideoHandler)
-
-
 }
 
 
