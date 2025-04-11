@@ -2,7 +2,7 @@ package routes
 
 import (
 	//"intern_template_v1/controller"
-	"intern_template_v1/controller"
+	// "intern_template_v1/controller"
 	admincontroller "intern_template_v1/controller/admin"
 	admincontroller2 "intern_template_v1/controller/admin/user_management"
 	authcontroller "intern_template_v1/controller/auth"
@@ -87,8 +87,8 @@ func AppRoutes(app *fiber.App) {
 
 
 	//routes for uploading images and videos
-	app.Post("/apartment/:apartment_id/image", controller.UploadApartmentImageHandler)
-	app.Post("/upload/video", controller.UploadVideoHandler)
+	// app.Post("/apartment/:apartment_id/image", controller.UploadApartmentImageHandler)
+	// app.Post("/upload/video", controller.UploadVideoHandler)
 
 
 }

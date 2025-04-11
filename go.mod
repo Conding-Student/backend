@@ -29,7 +29,7 @@ require (
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudinary/cloudinary-go/v2 v2.9.1 // indirect
+	github.com/cloudinary/cloudinary-go/v2 v2.9.1
 	github.com/cncf/xds/go v0.0.0-20250121191232-2f005788dc42 // indirect
 	github.com/creasty/defaults v1.7.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
