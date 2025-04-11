@@ -1,71 +1,209 @@
 package controller
 
-// import (
-// 	"intern_template_v1/middleware"
-// 	"intern_template_v1/model"
-// 	"net/http"
-// 	"strconv"
-// 	"time"
+import (
+	"fmt"
+	"intern_template_v1/middleware"
+	"intern_template_v1/model"
+	"time"
 
-// 	"github.com/gofiber/fiber/v2"
-// )
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
+)
 
-// // Inquiry notification function that sends reminders to tenants with pending inquiries
-// func NotifyPendingInquiries(c *fiber.Ctx) error {
-// 	// Get the current time in Manila timezone (Asia/Manila)
-// 	currentTime := time.Now().In(time.FixedZone("Asia/Manila", 8*60*60)) // UTC +8
+// FetchPendingInquiriesForTenant retrieves pending inquiries for the logged-in tenant
+func FetchPendingInquiriesForTenant(c *fiber.Ctx) error {
+	// 🔐 Extract user claims from JWT
+	userClaims, ok := c.Locals("user").(jwt.MapClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Missing JWT claims",
+		})
+	}
 
-// 	// Fetch inquiries that have been pending for exactly 1 week and have not been notified
-// 	var inquiries []model.Inquiry
-// 	if err := middleware.DBConn.
-// 		Where("status = ? AND created_at <= ? AND notified = ?", "Pending", currentTime.Add(-7*24*time.Hour), false).
-// 		Find(&inquiries).Error; err != nil {
-// 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-// 			"message": "Database error: Unable to fetch inquiries",
-// 			"error":   err.Error(),
-// 		})
-// 	}
+	// 🆔 Get tenant UID from JWT
+	tenantUID, ok := userClaims["uid"].(string)
+	if !ok || tenantUID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Invalid tenant UID",
+		})
+	}
 
-// 	// List to hold notifications to return
-// 	var notifications []fiber.Map
+	// 📥 Struct to hold the result of the query
+	var results []struct {
+		InquiryMessage        string  `json:"inquiry_message"`
+		UserUID               string  `json:"user_uid"`
+		ApartmentName         string  `json:"apartment_name"`
+		ApartmentType         string  `json:"apartment_type"`
+		ApartmentRentPrice    float64 `json:"apartment_rent_price"`
+		ApartmentLocationLink string  `json:"apartment_location_link"`
+		ApartmentLandmarks    string  `json:"apartment_landmarks"`
+		Status                string  `json:"status"`
+		CreatedAt             string  `json:"created_at"`
+	}
 
-// 	// Loop through the inquiries to send notifications
-// 	for _, inquiry := range inquiries {
-// 		// Fetch tenant details based on Tenant ID
-// 		var tenant model.User
-// 		if err := middleware.DBConn.
-// 			Where("id = ?", inquiry.TenantID).
-// 			First(&tenant).Error; err != nil {
-// 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-// 				"message": "Database error: Unable to fetch tenant details",
-// 				"error":   err.Error(),
-// 			})
-// 		}
+	// 🧠 SQL-like query to fetch pending inquiries for this tenant
+	if err := middleware.DBConn.Table("inquiries AS i").
+		Select(`
+			i.message AS inquiry_message,
+			i.uid AS user_uid,
+			a.property_name AS apartment_name,
+			a.property_type AS apartment_type,
+			a.rent_price AS apartment_rent_price,
+			a.location_link AS apartment_location_link,
+			a.landmarks AS apartment_landmarks,
+			i.status AS status,
+			i.created_at AS created_at`).
+		Joins("JOIN apartments a ON i.apartment_id = a.id").
+		Where("i.uid = ? AND i.status = ?", tenantUID, "Pending").
+		Order("i.created_at DESC").
+		Scan(&results).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error: Unable to fetch inquiries",
+			"error":   err.Error(),
+		})
+	}
 
-// 		// Create the notification message for the tenant
-// 		message := "Your inquiry for apartment ID " + strconv.Itoa(int(inquiry.ApartmentID)) + " is still pending due to the landlord's inactivity. We recommend you try applying for other available apartments."
+	// 🎉 Return the pending inquiries
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"pending_inquiries": results,
+	})
+}
 
-// 		// Append notification for response
-// 		notifications = append(notifications, fiber.Map{
-// 			"tenant_id":    tenant.ID,
-// 			"tenant_name":  tenant.FirstName + " " + tenant.LastName,
-// 			"tenant_email": tenant.Email,
-// 			"apartment_id": inquiry.ApartmentID,
-// 			"message":      message,
-// 		})
+// DeleteInquiryAfterViewingNotification deletes the inquiry after tenant views rejection notification
+func DeleteInquiryAfterViewingNotification(c *fiber.Ctx) error {
+	// Extract JWT claims
+	userClaims, ok := c.Locals("user").(jwt.MapClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Missing JWT claims",
+		})
+	}
 
-// 		// Update the `notified` column to `true` so the tenant won't be notified again for this inquiry
-// 		if err := middleware.DBConn.Model(&inquiry).Update("notified", true).Error; err != nil {
-// 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-// 				"message": "Error while updating notification status",
-// 				"error":   err.Error(),
-// 			})
-// 		}
-// 	}
+	tenantUID, ok := userClaims["uid"].(string)
+	if !ok || tenantUID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Invalid tenant UID",
+		})
+	}
 
-// 	// Return the notifications as part of the response
-// 	return c.Status(http.StatusOK).JSON(fiber.Map{
-// 		"message":       "Pending inquiry notifications sent successfully",
-// 		"notifications": notifications,
-// 	})
-// }
+	// 📥 Request body to handle inquiry ID
+	type Request struct {
+		InquiryID uint `json:"inquiry_id"`
+	}
+
+	var req Request
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	// Retrieve the inquiry related to this tenant
+	var inquiry model.Inquiry
+	if err := middleware.DBConn.Where("id = ? AND uid = ?", req.InquiryID, tenantUID).First(&inquiry).Error; err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "Inquiry not found or does not belong to this tenant",
+			"error":   err.Error(),
+		})
+	}
+
+	// Check if inquiry is either Rejected or Pending and expired
+	currentTime := time.Now()
+	if inquiry.Status == "Rejected" || (inquiry.Status == "Pending" && inquiry.ExpiresAt.Before(currentTime)) {
+		// Mark the inquiry as notified by setting "notified" to true
+		inquiry.Notified = true
+		if err := middleware.DBConn.Save(&inquiry).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Error updating inquiry status",
+				"error":   err.Error(),
+			})
+		}
+
+		// Delete the inquiry from the database
+		if err := middleware.DBConn.Delete(&inquiry).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Error deleting inquiry",
+				"error":   err.Error(),
+			})
+		}
+
+		// 🎉 Return success response
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "Inquiry successfully deleted after viewing rejection notification or expiration",
+		})
+	}
+
+	// If inquiry is not Rejected or expired, it cannot be deleted
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		"message": "Only rejected or expired inquiries can be deleted",
+	})
+}
+
+func DeleteExpiredInquiries() {
+	// Run this function periodically, e.g., every hour
+	for {
+		// Get the current time
+		currentTime := time.Now()
+
+		// Query all inquiries where the expiration date has passed and the status is "Pending"
+		var expiredInquiries []model.Inquiry
+		if err := middleware.DBConn.Where("expires_at < ? AND status = ?", currentTime, "Pending").Find(&expiredInquiries).Error; err != nil {
+			fmt.Printf("Error fetching expired inquiries: %v\n", err)
+			return
+		}
+
+		// Loop through all expired inquiries
+		for _, inquiry := range expiredInquiries {
+			// If the inquiry is expired and notified is true, delete it
+			if inquiry.Notified == true {
+				// Delete the inquiry immediately
+				if err := middleware.DBConn.Delete(&inquiry).Error; err != nil {
+					fmt.Printf("Error deleting expired inquiry ID: %d, Error: %v\n", inquiry.ID, err)
+				} else {
+					fmt.Printf("Deleted expired inquiry ID: %d\n", inquiry.ID)
+				}
+			} else {
+				// If the inquiry is expired but not notified, don't delete it yet
+				fmt.Printf("Inquiry ID: %d is expired but not yet notified\n", inquiry.ID)
+			}
+		}
+
+		// Wait for some time before running again, e.g., every 1 hour
+		time.Sleep(1 * time.Hour)
+	}
+}
+
+func CountAcceptedOrRejectedInquiries(c *fiber.Ctx) error {
+	// Extract JWT claims to get tenant UID
+	userClaims, ok := c.Locals("user").(jwt.MapClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Missing JWT claims",
+		})
+	}
+
+	tenantUID, ok := userClaims["uid"].(string)
+	if !ok || tenantUID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Invalid tenant UID",
+		})
+	}
+
+	// Count the number of inquiries with status "Accepted" or "Rejected" for this tenant
+	var count int64
+	if err := middleware.DBConn.
+		Model(&model.Inquiry{}).
+		Where("uid = ? AND status IN ?", tenantUID, []string{"Accepted", "Rejected"}).
+		Count(&count).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to count inquiries",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"uid":                  tenantUID,
+		"accepted_or_rejected": count,
+	})
+}

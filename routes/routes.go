@@ -8,8 +8,12 @@ import (
 
 	// Usercontroller "intern_template_v1/controller/auth"
 	all "intern_template_v1/controller/all"
+
 	landlordcontroller "intern_template_v1/controller/landlord"
 	landlordcontroller2 "intern_template_v1/controller/landlord/business_profile"
+
+	landlordcontroller_inquiries "intern_template_v1/controller/landlord/inquries"
+
 	tenantscontroller "intern_template_v1/controller/tenants"
 	"intern_template_v1/middleware"
 
@@ -22,7 +26,7 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("RentXpert! go, go, go lang!")
 	})
-
+	go tenantscontroller.DeleteExpiredInquiries()
 	//////////////////// Landlord //////////////////
 	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)          //insert application for landlord apartment
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord) //Property get by landlord
@@ -31,7 +35,9 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
 
 	app.Get("/tenants/inquiry/display", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
-	app.Put("/update-inquiry-status/:uid", landlordcontroller.FetchInquiriesByLandlord)                         // Approve/Reject a users inquiry
+	app.Put("/landlord/inquiry/status", middleware.AuthMiddleware, landlordcontroller_inquiries.UpdateInquiryStatusByLandlord)
+
+	app.Put("/update-inquiry-status/:uid", landlordcontroller.FetchInquiriesByLandlord) // Approve/Reject a users inquiry
 
 	app.Delete("/apartment/delete/:id", middleware.AuthMiddleware, landlordcontroller.DeleteApartment) // landlord confirms rejected apartment
 
@@ -58,6 +64,10 @@ func AppRoutes(app *fiber.App) {
 
 	//////////////////// Tenant //////////////////
 	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)
+	app.Get("/fetchpending/inquiry", middleware.AuthMiddleware, tenantscontroller.FetchPendingInquiriesForTenant)
+	app.Post("/tenant/delete-inquiry", middleware.AuthMiddleware, tenantscontroller.DeleteInquiryAfterViewingNotification)
+	app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
+
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant) //Display all the Approved apartment
 
 	app.Post("/add/wishlist", middleware.AuthMiddleware, tenantscontroller.AddToWishlist)
