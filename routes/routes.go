@@ -55,8 +55,10 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/admin/apartments/details", admincontroller2.GetApartmentDetails) //Get complete apartment details along with other data
 
 	app.Put("/admin/promoting/account/:uid", admincontroller.UpdateUserType) //update user type tenant / land;lord
-	app.Get("/apartments/pending", admincontroller.GetPendingApartments)     // Fetch unverified apartments
-	app.Put("/apartments/verify/:id", admincontroller.VerifyApartment)       // Approve/Reject an apartment
+
+	app.Put("/admin/apartments/update/:id", admincontroller.UpdateApartmentInfo)
+	app.Get("/apartments/pending", admincontroller.GetPendingApartments) // Fetch unverified apartments
+	app.Put("/apartments/verify/:id", admincontroller.VerifyApartment)   // Approve/Reject an apartment
 
 	//////////////////// Admin //////////////////
 
@@ -94,14 +96,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
 	//rountes for automatically deleting tenants inquiry
 	//app.Get("/inquiries/cleanup", middleware.AuthMiddleware, tenantscontroller.NotifyPendingInquiries)
-
-
-
 	//routes for uploading images and videos
 	// app.Post("/apartment/:apartment_id/image", controller.UploadApartmentImageHandler)
 	// app.Post("/upload/video", controller.UploadVideoHandler)
-
-
 }
-
-

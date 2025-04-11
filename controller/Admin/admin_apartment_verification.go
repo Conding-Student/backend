@@ -78,6 +78,63 @@ func VerifyApartment(c *fiber.Ctx) error {
 	})
 }
 
+type UpdateApartmentRequest struct {
+	Name     string  `json:"name"`
+	Type     string  `json:"type"`
+	Location string  `json:"location"`
+	Price    float64 `json:"price"`
+}
+
+// UpdateApartmentInfo allows editing PropertyName, PropertyType, Address, and RentPrice
+func UpdateApartmentInfo(c *fiber.Ctx) error {
+	apartmentID := c.Params("id") // Apartment ID from URL
+	var req struct {
+		PropertyName string  `json:"property_name"`
+		PropertyType string  `json:"property_type"`
+		Address      string  `json:"address"`
+		RentPrice    float64 `json:"rent_price"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request format",
+		})
+	}
+
+	// Retrieve apartment
+	var apartment model.Apartment
+	result := middleware.DBConn.First(&apartment, apartmentID)
+	if result.Error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Apartment not found",
+		})
+	}
+
+	// Update the fields
+	apartment.PropertyName = req.PropertyName
+	apartment.PropertyType = req.PropertyType
+	apartment.Address = req.Address
+	apartment.RentPrice = req.RentPrice
+
+	// Save updates
+	if err := middleware.DBConn.Save(&apartment).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update apartment info",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":      "Apartment information updated successfully",
+		"apartment_id": apartmentID,
+		"updated_info": fiber.Map{
+			"property_name": apartment.PropertyName,
+			"property_type": apartment.PropertyType,
+			"address":       apartment.Address,
+			"rent_price":    apartment.RentPrice,
+		},
+	})
+}
+
 // Delete Apartment when landlord confirms
 // func ConfirmLandlord(c *fiber.Ctx) error {
 // 	apartmentID := c.Params("uid")
