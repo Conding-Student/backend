@@ -4,6 +4,7 @@ import (
 	//"intern_template_v1/controller"
 	// "intern_template_v1/controller"
 	admincontroller "intern_template_v1/controller/admin"
+	admincontroller3 "intern_template_v1/controller/admin/apartment_management"
 	admincontroller2 "intern_template_v1/controller/admin/user_management"
 	authcontroller "intern_template_v1/controller/auth"
 
@@ -52,7 +53,7 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/users/update", admincontroller2.UpdateUserDetails)       // Updating user values in the admin
 	app.Delete("/admin/user/:uid", admincontroller2.SoftDeleteUser)    // Mark the account status as deleted
 
-	app.Get("/admin/apartments/details", admincontroller2.GetApartmentDetails) //Get complete apartment details along with other data
+	app.Get("/admin/apartments/details", admincontroller3.GetFilteredApartments) //Get complete apartment details along with other data
 
 	app.Put("/admin/promoting/account/:uid", admincontroller.UpdateUserType) //update user type tenant / land;lord
 

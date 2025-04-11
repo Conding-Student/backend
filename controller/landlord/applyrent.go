@@ -50,6 +50,19 @@ func CreateApartment(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
+	// 🔍 Verify if the user is registered as a landlord
+	var user model.User
+	if err := middleware.DBConn.Where("uid = ? AND user_type = ?", uid, "Landlord").First(&user).Error; err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: User is not a registered landlord",
+		})
+	}
+	// 📌 Validate required fields
+	if req.PropertyName == "" || req.PropertyType == "" || req.RentPrice <= 0 || req.LocationLink == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Missing required fields: property_name, property_type, rent_price, or location_link",
+		})
+	}
 
 	// Validate required fields
 	if req.PropertyName == "" || req.PropertyType == "" || req.RentPrice <= 0 || req.LocationLink == "" {
@@ -70,6 +83,14 @@ func CreateApartment(c *fiber.Ctx) error {
 	if tx.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Database error: Unable to start transaction",
+		})
+	}
+	// 🔍 Check if the apartment with the same PropertyName and LocationLink already exists for the same UID
+	var existingApartment model.Apartment
+	if err := tx.Where("property_name = ? AND location_link = ? AND uid = ?", req.PropertyName, req.LocationLink, uid).First(&existingApartment).Error; err == nil {
+		tx.Rollback()
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"message": "Apartment with the same property name and location already exists for this landlord",
 		})
 	}
 	// 🆔 Extract Landlord Uid safely from JWT claims
