@@ -66,8 +66,8 @@ func VerifyUsers(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateAccountStatus function to update the user's account status to 'Landlord'
-func UpdateUserType(c *fiber.Ctx) error {
+// UpdateAccountStatus function to update the user's account status to 'Verified'
+func UpdateAccountStatus(c *fiber.Ctx) error {
 	// Extract the UID from the request (you can modify this part based on your request)
 	uid := c.Params("uid") // Assuming UID is passed in the URL as a parameter
 
@@ -85,8 +85,8 @@ func UpdateUserType(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update the account status to 'Landlord'
-	user.UserType = "Landlord"
+	// Update the account status to 'Verified'
+	user.AccountStatus = "Verified"
 	if err := middleware.DBConn.Save(&user).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Error updating account status",
@@ -99,7 +99,53 @@ func UpdateUserType(c *fiber.Ctx) error {
 		"message": "Account status updated successfully",
 		"user": fiber.Map{
 			"uid":            user.Uid,
-			"account_status": user.UserType,
+			"account_status": user.AccountStatus, // Use the updated account_status field
+		},
+	})
+}
+
+func UpdateUserType(c *fiber.Ctx) error {
+	// Extract the UID from the request (e.g., /user/type/:uid)
+	uid := c.Params("uid")
+
+	// Query the database for the user
+	var user model.User
+	if err := middleware.DBConn.Where("uid = ?", uid).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "User not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error",
+			"error":   err.Error(),
+		})
+	}
+
+	// Check if the user is already Verified
+	if user.AccountStatus != "Verified" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message":        "User account must be verified to become a landlord",
+			"current_status": user.AccountStatus,
+		})
+	}
+
+	// Proceed to update the user type
+	user.UserType = "Landlord"
+	if err := middleware.DBConn.Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Error updating user type",
+			"error":   err.Error(),
+		})
+	}
+
+	// Return success response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "User type updated to Landlord successfully",
+		"user": fiber.Map{
+			"uid":            user.Uid,
+			"user_type":      user.UserType,
+			"account_status": user.AccountStatus,
 		},
 	})
 }

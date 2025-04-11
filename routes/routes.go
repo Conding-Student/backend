@@ -57,7 +57,8 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/admin/apartments/update/:id", admincontroller.UpdateApartmentInfo)    // Update the apartment details
 	app.Delete("/admin/apartment/delete/:id", admincontroller3.DeleteApartmentByID) // Delete speific apartment
 
-	app.Put("/admin/promoting/account/:uid", admincontroller.UpdateUserType) //update user type tenant / landlord
+	app.Put("/admin/promoting/account/:uid", admincontroller.UpdateUserType)      //update user type tenant / landlord
+	app.Put("/admin/verifying/validid/:uid", admincontroller.UpdateAccountStatus) //update account status tenant / landlord
 
 	app.Get("/apartments/pending", admincontroller.GetPendingApartments) // Fetch unverified apartments
 	app.Put("/apartments/verify/:id", admincontroller.VerifyApartment)   // Approve/Reject an apartment
