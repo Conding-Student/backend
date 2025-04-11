@@ -67,6 +67,7 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/fetchpending/inquiry", middleware.AuthMiddleware, tenantscontroller.FetchPendingInquiriesForTenant)
 	app.Post("/tenant/delete-inquiry", middleware.AuthMiddleware, tenantscontroller.DeleteInquiryAfterViewingNotification)
 	app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
+	app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetApprovedOrRejectedInquiries)
 
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant) //Display all the Approved apartment
 
