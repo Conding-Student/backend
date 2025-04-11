@@ -53,6 +53,11 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/users/update", admincontroller2.UpdateUserDetails)       // Updating user values in the admin
 	app.Delete("/admin/user/:uid", admincontroller2.SoftDeleteUser)    // Mark the account status as deleted
 
+	// Dashboard
+	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)               //displaying number of users by usertype
+	app.Get("/admin/count_apartment/:status", admincontroller2.CountApartmentsByStatus) //displaying number of users by usertype
+	app.Get("/admin/count-property-type/:property_type", admincontroller2.CountApartmentsByPropertyType)
+
 	app.Get("/admin/apartments/details", admincontroller3.GetFilteredApartments)    //Get complete apartment details along with other data and can be filtered
 	app.Put("/admin/apartments/update/:id", admincontroller.UpdateApartmentInfo)    // Update the apartment details
 	app.Delete("/admin/apartment/delete/:id", admincontroller3.DeleteApartmentByID) // Delete speific apartment
