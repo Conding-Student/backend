@@ -34,7 +34,6 @@ type User struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// Apartment model – note that we removed the association back to User
 type Apartment struct {
 	ID           uint      `gorm:"primaryKey"`
 	Uid          string    `gorm:"not null"` // Landlord's UID; no foreign key constraint here.
@@ -45,9 +44,9 @@ type Apartment struct {
 	LocationLink string    `gorm:"not null"`
 	Landmarks    string    `gorm:"not null"`
 	Status       string    `gorm:"not null;default:'Pending'"`
-	Latitude     float64   `gorm:"null"`
-	Longitude    float64   `gorm:"null"`
-	UserID        string    `gorm:"not null"`  // Add this field to reference the landlord's UID
+	Latitude     float64   `gorm:"not null"`
+	Longitude    float64   `gorm:"not null"`
+	UserID       string    `gorm:"not null"` // Add this field to reference the landlord's UID
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -77,12 +76,11 @@ type ApartmentImage struct {
 
 // Apartment videos
 type ApartmentVideo struct {
-    ID          uint      `gorm:"primaryKey"`
-    ApartmentID uint      `gorm:"not null;index;constraint:OnDelete:CASCADE"`
-    VideoURL    string    `gorm:"not null"`
-    Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
+	ID          uint      `gorm:"primaryKey"`
+	ApartmentID uint      `gorm:"not null;index;constraint:OnDelete:CASCADE"`
+	VideoURL    string    `gorm:"not null"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
-
 
 // Inquiry model (With automatic expiration & notification)
 type Inquiry struct {
@@ -94,8 +92,8 @@ type Inquiry struct {
 	CreatedAt   time.Time `json:"created_at"`
 	ExpiresAt   time.Time `gorm:"not null"`
 	Notified    bool      `gorm:"not null;default:false"`
-	User      User      `gorm:"foreignKey:UID;references:Uid"`
-	Apartment Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
+	User        User      `gorm:"foreignKey:UID;references:Uid"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 // Amenity model
@@ -133,5 +131,3 @@ type Wishlist struct {
 	CreatedAt   time.Time `json:"created_at"`
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
-
-
