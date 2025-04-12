@@ -4,6 +4,7 @@ import (
 	//"intern_template_v1/controller"
 	// "intern_template_v1/controller"
 	admincontroller "intern_template_v1/controller/admin"
+	admincontroller3 "intern_template_v1/controller/admin/apartment_management"
 	admincontroller2 "intern_template_v1/controller/admin/user_management"
 	authcontroller "intern_template_v1/controller/auth"
 
@@ -52,11 +53,20 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/users/update", admincontroller2.UpdateUserDetails)       // Updating user values in the admin
 	app.Delete("/admin/user/:uid", admincontroller2.SoftDeleteUser)    // Mark the account status as deleted
 
-	app.Get("/admin/apartments/details", admincontroller2.GetApartmentDetails) //Get complete apartment details along with other data
+	// Dashboard
+	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)               //displaying number of users by usertype
+	app.Get("/admin/count_apartment/:status", admincontroller2.CountApartmentsByStatus) //displaying number of users by usertype
+	app.Get("/admin/count-property-type/:property_type", admincontroller2.CountApartmentsByPropertyType)
 
-	app.Put("/admin/promoting/account/:uid", admincontroller.UpdateUserType) //update user type tenant / land;lord
-	app.Get("/apartments/pending", admincontroller.GetPendingApartments)     // Fetch unverified apartments
-	app.Put("/apartments/verify/:id", admincontroller.VerifyApartment)       // Approve/Reject an apartment
+	app.Get("/admin/apartments/details", admincontroller3.GetFilteredApartments)    //Get complete apartment details along with other data and can be filtered
+	app.Put("/admin/apartments/update/:id", admincontroller.UpdateApartmentInfo)    // Update the apartment details
+	app.Delete("/admin/apartment/delete/:id", admincontroller3.DeleteApartmentByID) // Delete speific apartment
+
+	app.Put("/admin/promoting/account/:uid", admincontroller.UpdateUserType)      //update user type tenant / landlord
+	app.Put("/admin/verifying/validid/:uid", admincontroller.UpdateAccountStatus) //update account status tenant / landlord
+
+	app.Get("/apartments/pending", admincontroller.GetPendingApartments) // Fetch unverified apartments
+	app.Put("/apartments/verify/:id", admincontroller.VerifyApartment)   // Approve/Reject an apartment
 
 	//////////////////// Admin //////////////////
 
@@ -68,6 +78,7 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/fetchpending/inquiry", middleware.AuthMiddleware, tenantscontroller.FetchPendingInquiriesForTenant)
 	app.Post("/tenant/delete-inquiry", middleware.AuthMiddleware, tenantscontroller.DeleteInquiryAfterViewingNotification)
 	app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
+	app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetApprovedOrRejectedInquiries)
 
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant) //Display all the Approved apartment
 
@@ -97,5 +108,3 @@ func AppRoutes(app *fiber.App) {
 
 
 }
-
-

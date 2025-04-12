@@ -8,7 +8,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -227,57 +226,3 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 }
 
 //
-
-// ApartmentDetail is a struct that holds all fields from the apartments table,
-// as well as related aggregated data.
-type ApartmentDetail struct {
-	ID           uint      `json:"id"`
-	Uid          string    `json:"uid"`           // Landlord UID from apartments table
-	PropertyName string    `json:"property_name"` // Example column from apartments table
-	Address      string    `json:"address"`       // Example column from apartments table
-	PropertyType string    `json:"property_type"` // Example column from apartments table
-	RentPrice    float64   `json:"rent_price"`    // Example column from apartments table
-	LocationLink string    `json:"location_link"` // Example column from apartments table
-	Landmarks    string    `json:"landmarks"`     // Example column from apartments table
-	Status       string    `json:"status"`        // Example column from apartments table
-	CreatedAt    time.Time `json:"created_at"`    // Example column from apartments table
-
-	LandlordName  string `json:"landlord_name"`  // From users.fullname
-	LandlordEmail string `json:"landlord_email"` // From users.email
-
-	Images     string `json:"images"`      // Aggregated apartment images
-	Amenities  string `json:"amenities"`   // Aggregated amenities names
-	HouseRules string `json:"house_rules"` // Aggregated house rules
-}
-
-// GetApartmentDetails handles GET requests and returns all apartment details
-// along with related landlord info, images, amenities, and house rules.
-func GetApartmentDetails(c *fiber.Ctx) error {
-	var apartments []ApartmentDetail
-
-	err := middleware.DBConn.Table("apartments a").
-		Select(`
-			a.*, 
-			u.fullname AS landlord_name, 
-			u.email AS landlord_email, 
-			STRING_AGG(DISTINCT ai.image_url, ', ') AS images, 
-			STRING_AGG(DISTINCT am.name, ', ') AS amenities, 
-			STRING_AGG(DISTINCT hr.rule, ', ') AS house_rules`).
-		Joins("LEFT JOIN users u ON a.uid = u.uid").
-		Joins("LEFT JOIN apartment_images ai ON ai.apartment_id = a.id").
-		Joins("LEFT JOIN apartment_amenities aa ON aa.apartment_id = a.id").
-		Joins("LEFT JOIN amenities am ON am.id = aa.amenity_id").
-		Joins("LEFT JOIN apartment_house_rules ahr ON ahr.apartment_id = a.id").
-		Joins("LEFT JOIN house_rules hr ON hr.id = ahr.house_rule_id").
-		Group("a.id, u.uid, u.fullname, u.email").
-		Order("a.created_at DESC").
-		Find(&apartments).Error
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(apartments)
-}

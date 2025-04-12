@@ -207,3 +207,63 @@ func CountAcceptedOrRejectedInquiries(c *fiber.Ctx) error {
 		"accepted_or_rejected": count,
 	})
 }
+func GetApprovedOrRejectedInquiries(c *fiber.Ctx) error {
+	// Extract JWT claims to get tenant UID
+	userClaims, ok := c.Locals("user").(jwt.MapClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Missing JWT claims",
+		})
+	}
+
+	tenantUID, ok := userClaims["uid"].(string)
+	if !ok || tenantUID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Invalid tenant UID",
+		})
+	}
+
+	// Define a struct to hold the result of the query
+	type InquiryResponse struct {
+		LandlordName   string `json:"landlord_name"`
+		LandlordPhoto  string `json:"landlord_photo"`
+		InquiryMessage string `json:"inquiry_message"`
+		InquiryStatus  string `json:"inquiry_status"`
+	}
+
+	// Execute the query to get inquiries with status "Accepted" or "Rejected"
+	var inquiries []InquiryResponse
+	if err := middleware.DBConn.
+		Raw(`
+			SELECT 
+				u.fullname AS landlord_name,
+				u.photo_url AS landlord_photo,
+				i.message AS inquiry_message,
+				i.status AS inquiry_status
+			FROM inquiries i
+			JOIN apartments a ON i.apartment_id = a.id
+			JOIN users u ON a.uid = u.uid
+			WHERE i.status IN ('Rejected', 'Accepted')
+			  AND i.uid = ? 
+			  AND u.user_type = 'Landlord'`, tenantUID).
+		Scan(&inquiries).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to retrieve inquiries",
+			"error":   err.Error(),
+		})
+	}
+
+	// Static message for Approved and Rejected inquiries
+	for i := range inquiries {
+		if inquiries[i].InquiryStatus == "Accepted" {
+			inquiries[i].InquiryMessage = "Your inquiry has been approved."
+		} else if inquiries[i].InquiryStatus == "Rejected" {
+			inquiries[i].InquiryMessage = "Your inquiry has been rejected."
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"tenant_uid": tenantUID,
+		"inquiries":  inquiries,
+	})
+}

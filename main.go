@@ -22,7 +22,6 @@ func main() {
 	if middleware.ConnectDB() {
 		log.Fatal("🔥 Failed to connect to the database")
 	}
-	
 
 	config.InitCloudinary()
 	// Step 1: Initialize Firebase App
@@ -38,18 +37,16 @@ func main() {
 	// Step 3: Set Firebase Auth in the auth controller
 	authController.InitFirebase(firebaseAuthClient)
 
-// Load .env file
-err = godotenv.Load()
-if err != nil {
-	log.Fatal("Error loading .env file")
-}
-
+	// Load .env file
+	err = godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	// Step 4: Create Fiber App
 	app := fiber.New(fiber.Config{
 		AppName: middleware.GetEnv("PROJ_NAME"),
 	})
-
 
 	// Example usage of the JWT secret key
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -59,8 +56,6 @@ if err != nil {
 	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
 		return c.SendStatus(204) // No Content
 	})
-
-
 
 	// Step 5: Register Routes
 	routes.AppRoutes(app)
