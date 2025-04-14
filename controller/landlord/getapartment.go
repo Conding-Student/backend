@@ -9,12 +9,25 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
-
-// Function to fetch apartment details along with its amenities and house rules based on ApartmentID
-// Function to get apartment details based on UID
-// Function to get apartment details based on UID
 func FetchApartmentsByLandlord(c *fiber.Ctx) error {
-	// 🔍 Extract user claims from JWT
+	type ApartmentDetails struct {
+		model.Apartment
+		LandlordName     string   `json:"landlord_name"`
+		LandlordEmail    string   `json:"landlord_email"`
+		LandlordPhone    string   `json:"landlord_phone"`
+		LandlordAddress  string   `json:"landlord_address"`
+		LandlordValidID  string   `json:"landlord_valid_id"`
+		LandlordPhotoURL string   `json:"landlord_photo_url"`
+		LandlordUserType string   `json:"landlord_user_type"`
+		LandlordStatus   string   `json:"landlord_account_status"`
+		Images           []string `json:"images"`
+		Videos           []string `json:"videos"`
+		Amenities        []string `json:"amenities"`
+		HouseRules       []string `json:"house_rules"`
+		InquiriesCount   int64    `json:"inquiries_count"`
+	}
+
+	// Extract user claims from JWT
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -22,7 +35,6 @@ func FetchApartmentsByLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// 🆔 Extract Landlord Uid safely from JWT claims
 	uid, ok := userClaims["uid"].(string)
 	if !ok || uid == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -30,7 +42,6 @@ func FetchApartmentsByLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch apartments associated with the UID
 	var apartments []model.Apartment
 	if err := middleware.DBConn.Where("uid = ?", uid).Find(&apartments).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -39,94 +50,78 @@ func FetchApartmentsByLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// If no apartments found
 	if len(apartments) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "No apartments found for this landlord",
 		})
 	}
 
-	// Prepare the result with apartment details, amenities, house rules, images, and inquiries
-	var apartmentDetails []fiber.Map
-	for _, apartment := range apartments {
-		// Fetch amenities associated with the apartment
-		var amenities []model.Amenity
-		if err := middleware.DBConn.
-			Joins("JOIN apartment_amenities aa ON aa.amenity_id = amenities.id").
-			Where("aa.apartment_id = ?", apartment.ID).
-			Find(&amenities).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to fetch amenities",
-				"error":   err.Error(),
-			})
-		}
-
-		// Fetch house rules associated with the apartment
-		var houseRules []model.HouseRule
-		if err := middleware.DBConn.
-			Joins("JOIN apartment_house_rules ahr ON ahr.house_rule_id = house_rules.id").
-			Where("ahr.apartment_id = ?", apartment.ID).
-			Find(&houseRules).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to fetch house rules",
-				"error":   err.Error(),
-			})
-		}
-
-		// Fetch images for the apartment
-		var images []model.ApartmentImage
-		if err := middleware.DBConn.Where("apartment_id = ?", apartment.ID).Find(&images).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to fetch images",
-				"error":   err.Error(),
-			})
-		}
-
-		// Fetch the number of inquiries for the apartment
-		var inquiryCount int64
-		if err := middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ?", apartment.ID).Count(&inquiryCount).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to count inquiries",
-				"error":   err.Error(),
-			})
-		}
-
-		// Prepare the apartment details with amenities, house rules, images, and inquiries
-		apartmentDetails = append(apartmentDetails, fiber.Map{
-			"property_name": apartment.PropertyName,
-			"property_type": apartment.PropertyType,
-			"rent_price":    apartment.RentPrice,
-			"location_link": apartment.LocationLink,
-			"landmarks":     apartment.Landmarks,
-			"images": func() []fiber.Map {
-				var imageDetails []fiber.Map
-				for _, image := range images {
-					imageDetails = append(imageDetails, fiber.Map{
-						"image_url": image.ImageURL, // Exclude apartment_id
-					})
-				}
-				return imageDetails
-			}(),
-			"amenities": func() []string {
-				var amenityNames []string
-				for _, amenity := range amenities {
-					amenityNames = append(amenityNames, amenity.Name)
-				}
-				return amenityNames
-			}(),
-			"house_rules": func() []string {
-				var ruleNames []string
-				for _, rule := range houseRules {
-					ruleNames = append(ruleNames, rule.Rule)
-				}
-				return ruleNames
-			}(),
-			"inquiries_count": inquiryCount,
+	// Fetch landlord details once (all apartments share same landlord UID)
+	var landlord model.User
+	if err := middleware.DBConn.Where("uid = ?", uid).First(&landlord).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Unable to fetch landlord details",
+			"error":   err.Error(),
 		})
 	}
 
-	// 🎉 Success Response with apartment details
+	var results []ApartmentDetails
+
+	for _, apt := range apartments {
+		var images []model.ApartmentImage
+		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&images)
+		var imageUrls []string
+		for _, img := range images {
+			imageUrls = append(imageUrls, img.ImageURL)
+		}
+
+		var videos []model.ApartmentVideo
+		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
+		var videoUrls []string
+		for _, vid := range videos {
+			videoUrls = append(videoUrls, vid.VideoURL)
+		}
+
+		var amenities []model.Amenity
+		middleware.DBConn.
+			Joins("JOIN apartment_amenities ON amenities.id = apartment_amenities.amenity_id").
+			Where("apartment_amenities.apartment_id = ?", apt.ID).Find(&amenities)
+		var amenityNames []string
+		for _, a := range amenities {
+			amenityNames = append(amenityNames, a.Name)
+		}
+
+		var houseRules []model.HouseRule
+		middleware.DBConn.
+			Joins("JOIN apartment_house_rules ON house_rules.id = apartment_house_rules.house_rule_id").
+			Where("apartment_house_rules.apartment_id = ?", apt.ID).Find(&houseRules)
+		var ruleNames []string
+		for _, r := range houseRules {
+			ruleNames = append(ruleNames, r.Rule)
+		}
+
+		var inquiryCount int64
+		middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ?", apt.ID).Count(&inquiryCount)
+
+		results = append(results, ApartmentDetails{
+			Apartment:        apt,
+			LandlordName:     landlord.Fullname,
+			LandlordEmail:    landlord.Email,
+			LandlordPhone:    landlord.PhoneNumber,
+			LandlordAddress:  landlord.Address,
+			LandlordValidID:  landlord.ValidID,
+			LandlordPhotoURL: landlord.PhotoURL,
+			LandlordUserType: landlord.UserType,
+			LandlordStatus:   landlord.AccountStatus,
+			Images:           imageUrls,
+			Videos:           videoUrls,
+			Amenities:        amenityNames,
+			HouseRules:       ruleNames,
+			InquiriesCount:   inquiryCount,
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"apartments": apartmentDetails,
+		"apartments": results,
 	})
 }
