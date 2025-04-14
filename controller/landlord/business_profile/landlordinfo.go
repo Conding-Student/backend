@@ -10,15 +10,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// 🆕 Updated struct to include birthday
+// ✅ Extend request struct to include profile image URL
 type ContactInfoRequest struct {
 	PhoneNumber *string `json:"phone_number"` // Optional
 	Address     *string `json:"address"`      // Optional
 	Fullname    *string `json:"fullname"`     // Optional
-	Birthday    *string `json:"birthday"`     // Optional, in YYYY-MM-DD format (as a string)
+	Birthday    *string `json:"birthday"`     // Optional, in YYYY-MM-DD format
+	ProfilePic  *string `json:"profile_pic"`  // Optional, Cloudinary URL
 }
 
-// ✅ Function to update phone number, address, fullname, and birthday
 func UpdateContactInfo(c *fiber.Ctx) error {
 	// 🔐 Extract JWT claims
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)
@@ -45,9 +45,9 @@ func UpdateContactInfo(c *fiber.Ctx) error {
 	}
 
 	// 🚫 Ensure at least one field is provided
-	if req.PhoneNumber == nil && req.Address == nil && req.Fullname == nil && req.Birthday == nil {
+	if req.PhoneNumber == nil && req.Address == nil && req.Fullname == nil && req.Birthday == nil && req.ProfilePic == nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "At least one field (phone_number, address, fullname, or birthday) must be provided",
+			"message": "At least one field (phone_number, address, fullname, birthday, or profile_pic) must be provided",
 		})
 	}
 
@@ -71,7 +71,6 @@ func UpdateContactInfo(c *fiber.Ctx) error {
 		user.Fullname = *req.Fullname
 	}
 	if req.Birthday != nil {
-		// Validate and parse the birthday field (if provided)
 		parsedBirthday, err := time.Parse("2006-01-02", *req.Birthday)
 		if err != nil {
 			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
@@ -79,6 +78,9 @@ func UpdateContactInfo(c *fiber.Ctx) error {
 			})
 		}
 		user.Birthday = parsedBirthday
+	}
+	if req.ProfilePic != nil {
+		user.PhotoURL = *req.ProfilePic
 	}
 
 	// 💾 Save updates
@@ -95,6 +97,7 @@ func UpdateContactInfo(c *fiber.Ctx) error {
 		"phone_number": user.PhoneNumber,
 		"address":      user.Address,
 		"fullname":     user.Fullname,
-		"birthday":     user.Birthday.Format("2006-01-02"), // Format birthday back to string
+		"birthday":     user.Birthday.Format("2006-01-02"),
+		"profile_pic":  user.PhotoURL,
 	})
 }
