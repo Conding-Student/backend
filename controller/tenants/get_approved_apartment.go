@@ -21,6 +21,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		LandlordUserType string   `json:"landlord_user_type"`
 		LandlordStatus   string   `json:"landlord_account_status"`
 		Images           []string `json:"images"`
+		Videos           []string `json:"videos"` // <-- Added field for videos
 		Amenities        []string `json:"amenities"`
 		HouseRules       []string `json:"house_rules"`
 		InquiriesCount   int64    `json:"inquiries_count"`
@@ -49,6 +50,14 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		for _, img := range images {
 			imageUrls = append(imageUrls, img.ImageURL)
 		}
+
+			// Fetch Videos
+			var videos []model.ApartmentVideo
+			middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
+			var videoUrls []string
+			for _, vid := range videos {
+				videoUrls = append(videoUrls, vid.VideoURL)
+			}
 
 		var amenities []model.Amenity
 		middleware.DBConn.
@@ -82,6 +91,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			LandlordUserType: landlord.UserType,
 			LandlordStatus:   landlord.AccountStatus,
 			Images:           imageUrls,
+			Videos:           videoUrls, // <-- Added to response
 			Amenities:        amenityNames,
 			HouseRules:       ruleNames,
 			InquiriesCount:   inquiryCount,
