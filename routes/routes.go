@@ -5,7 +5,9 @@ import (
 	// "intern_template_v1/controller"
 	admincontroller "intern_template_v1/controller/admin"
 	admincontroller3 "intern_template_v1/controller/admin/apartment_management"
+	admincontroller4 "intern_template_v1/controller/admin/chart"
 	admincontroller2 "intern_template_v1/controller/admin/user_management"
+
 	authcontroller "intern_template_v1/controller/auth"
 
 	// Usercontroller "intern_template_v1/controller/auth"
@@ -53,10 +55,19 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/users/update", admincontroller2.UpdateUserDetails)       // Updating user values in the admin
 	app.Delete("/admin/user/:uid", admincontroller2.SoftDeleteUser)    // Mark the account status as deleted
 
+	// profile updating
+	app.Put("/admin/update-profile", admincontroller.UpdateAdminProfile) // updating admin email or password
+
+	// chart per year
+	app.Get("/api/stats/user-years", admincontroller4.GetAvailableUserYears)
+	app.Get("/api/stats/users-by-year", admincontroller4.GetUserStatsByYear)
+
 	// Dashboard
-	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)               //displaying number of users by usertype
-	app.Get("/admin/count_apartment/:status", admincontroller2.CountApartmentsByStatus) //displaying number of users by usertype
+	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)                               //displaying number of users by usertype
+	app.Get("/admin/count-user/:account_status/:user_type", admincontroller2.CountUsersByStatusAndType) //displaying number of users whose verified and still pending
+	app.Get("/admin/count_apartment/:status", admincontroller2.CountApartmentsByStatus)                 //displaying number of users by usertype
 	app.Get("/admin/count-property-type/:property_type", admincontroller2.CountApartmentsByPropertyType)
+	app.Get("/admin/count-apartment/:status/:property_type", admincontroller2.CountApartmentsByStatusAndType) //displaying toal number of both pending & property type
 
 	app.Get("/admin/apartments/details", admincontroller3.GetFilteredApartments)    //Get complete apartment details along with other data and can be filtered
 	app.Put("/admin/apartments/update/:id", admincontroller.UpdateApartmentInfo)    // Update the apartment details
@@ -104,7 +115,5 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
 	//rountes for automatically deleting tenants inquiry
 	//app.Get("/inquiries/cleanup", middleware.AuthMiddleware, tenantscontroller.NotifyPendingInquiries)
-
-
 
 }

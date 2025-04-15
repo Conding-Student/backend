@@ -62,6 +62,7 @@ func CountApartmentsByStatus(c *fiber.Ctx) error {
 	})
 }
 
+// for charts
 func CountApartmentsByPropertyType(c *fiber.Ctx) error {
 	propertyType := c.Params("property_type") // e.g. Apartment, Condo, All
 
@@ -88,5 +89,75 @@ func CountApartmentsByPropertyType(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"property_type": propertyType,
 		"count":         count,
+	})
+}
+
+func CountApartmentsByStatusAndType(c *fiber.Ctx) error {
+	status := c.Params("status")              // e.g. Approved, Pending
+	propertyType := c.Params("property_type") // e.g. Apartment, Condo, All
+
+	if status == "" || (strings.ToLower(status) != "pending" && strings.ToLower(status) != "approved") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid or missing status. Must be 'Pending' or 'Approved'.",
+		})
+	}
+
+	var count int64
+	var err error
+
+	query := middleware.DBConn.Model(&model.Apartment{}).Where("status = ?", status)
+
+	if propertyType != "" && strings.ToLower(propertyType) != "all" {
+		query = query.Where("property_type = ?", propertyType)
+	}
+
+	err = query.Count(&count).Error
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Error counting apartments",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":        status,
+		"property_type": propertyType,
+		"count":         count,
+	})
+}
+
+// counting users based on account status
+func CountUsersByStatusAndType(c *fiber.Ctx) error {
+	accountStatus := c.Params("account_status") // e.g. Pending, Verified
+	userType := c.Params("user_type")           // e.g. Landlord, Tenant
+
+	if accountStatus == "" || (strings.ToLower(accountStatus) != "pending" && strings.ToLower(accountStatus) != "verified") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid or missing account_status. Must be 'Pending' or 'Verified'.",
+		})
+	}
+
+	if userType == "" || (strings.ToLower(userType) != "landlord" && strings.ToLower(userType) != "tenant") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid or missing user_type. Must be 'Landlord' or 'Tenant'.",
+		})
+	}
+
+	var count int64
+	err := middleware.DBConn.Model(&model.User{}).
+		Where("account_status = ? AND user_type = ?", accountStatus, userType).
+		Count(&count).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Error counting users",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"account_status": accountStatus,
+		"user_type":      userType,
+		"count":          count,
 	})
 }
