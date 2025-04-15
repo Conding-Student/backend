@@ -57,15 +57,14 @@ func main() {
 		return c.SendStatus(204) // No Content
 	})
 
-	// Step 5: Register Routes
-	routes.AppRoutes(app)
-	routes.UserRoutes(app)
-
 	// CORS CONFIG
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
+	// Step 5: Register Routes
+	routes.AppRoutes(app)
+	routes.UserRoutes(app)
 
 	// LOGGER
 	app.Use(logger.New())

@@ -10,14 +10,10 @@ type DeleteApartmentRequest struct {
 }
 
 type Admins struct {
-	ID          uint      `gorm:"primaryKey"`
-	PhotoURL    string    `json:"photo_url"`
-	Email       string    `gorm:"unique;not null"`
-	Fullname    string    `gorm:"null"`
-	PhoneNumber string    `gorm:"null"`
-	Birthday    time.Time `json:"birthday"`
-	Password    string    `gorm:"not null"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID        uint      `gorm:"primaryKey"`
+	Email     string    `gorm:"unique;not null"`
+	Password  string    `gorm:"not null"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type User struct {
@@ -52,14 +48,6 @@ type Apartment struct {
 	Longitude    float64   `gorm:"null"`
 	UserID       string    `gorm:"not null"` // Add this field to reference the landlord's UID
 	CreatedAt    time.Time `json:"created_at"`
-}
-
-// Admin model (Separate from User)
-type Admin struct {
-	ID        uint      `gorm:"primaryKey"`
-	Email     string    `gorm:"unique;not null"`
-	Password  string    `gorm:"not null"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
 // Landlord Profile (Related to User via Uid)
