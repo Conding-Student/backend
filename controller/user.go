@@ -69,6 +69,7 @@ func GetUserProfile(c *fiber.Ctx) error {
 			"address":      user.Address,
 			"user_type":    user.UserType,
 			"age":          user.Age,
+			"birthday":     user.Birthday.Format("2006-01-02"), // format as string YYYY-MM-DD
 		},
 	})
 }
