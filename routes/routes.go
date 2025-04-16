@@ -44,8 +44,8 @@ func AppRoutes(app *fiber.App) {
 
 	app.Put("/update-inquiry-status/:uid", landlordcontroller.FetchInquiriesByLandlord) // Approve/Reject a users inquiry
 
-	app.Delete("/apartment/delete/:id", middleware.AuthMiddleware, landlordcontroller.DeleteApartment) // landlord confirms rejected apartment
-
+	app.Delete("/apartment/delete/:id", middleware.AuthMiddleware, landlordcontroller.DeleteApartment)       // landlord confirms rejected apartment
+	app.Delete("/apartment/deleteany/:id", middleware.AuthMiddleware, landlordcontroller.DeleteApartmentAny) // landlord delete any apartment
 	//////////////////// Landlord //////////////////
 
 	//////////////////// Admin //////////////////
@@ -103,6 +103,7 @@ func AppRoutes(app *fiber.App) {
 
 	//////////////////// ALL //////////////////
 	app.Put("/api/user/update-contact", middleware.AuthMiddleware, landlordcontroller2.UpdateContactInfo)
+	app.Get("/all/apartmentfulldetails/:id", all.FetchSingleApprovedApartmentForAll) // view all of the specific apartment details
 
 	//////////////////// ALL //////////////////
 
