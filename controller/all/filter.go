@@ -165,3 +165,5 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		"apartments": results,
 	})
 }
+
+//

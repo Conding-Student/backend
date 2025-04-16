@@ -34,6 +34,7 @@ func AppRoutes(app *fiber.App) {
 	//////////////////// Landlord //////////////////
 	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)          //insert application for landlord apartment
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord) //Property get by landlord
+	app.Put("/landlord/apartmentupdate/:id", middleware.AuthMiddleware, landlordcontroller.UpdateApartmentDetails)
 
 	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
 	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
@@ -83,6 +84,7 @@ func AppRoutes(app *fiber.App) {
 
 	//	FOR ALL
 	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
+	app.Get("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant) //http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
 
 	//////////////////// Tenant //////////////////
 	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)

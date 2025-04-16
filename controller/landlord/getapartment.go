@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
+
 func FetchApartmentsByLandlord(c *fiber.Ctx) error {
 	type ApartmentDetails struct {
 		model.Apartment
@@ -123,5 +124,116 @@ func FetchApartmentsByLandlord(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"apartments": results,
+	})
+}
+
+// update apartment details
+
+func UpdateApartmentDetails(c *fiber.Ctx) error {
+	type UpdateInput struct {
+		PropertyName string    `json:"property_name"`
+		Address      string    `json:"address"`
+		PropertyType string    `json:"property_type"`
+		RentPrice    float64   `json:"rent_price"`
+		LocationLink string    `json:"location_link"`
+		Landmarks    string    `json:"landmarks"`
+		Latitude     *float64  `json:"latitude"`  // use pointer to detect if provided
+		Longitude    *float64  `json:"longitude"` // same here
+		Amenities    *[]string `json:"amenities"`
+		HouseRules   *[]string `json:"house_rules"`
+	}
+
+	// Extract JWT user claims
+	userClaims, ok := c.Locals("user").(jwt.MapClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Unauthorized"})
+	}
+
+	uid, ok := userClaims["uid"].(string)
+	if !ok || uid == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Invalid UID"})
+	}
+
+	apartmentID := c.Params("id")
+	var apartment model.Apartment
+	if err := middleware.DBConn.First(&apartment, "id = ? AND uid = ?", apartmentID, uid).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Apartment not found or unauthorized", "error": err.Error()})
+	}
+
+	var input UpdateInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid input", "error": err.Error()})
+	}
+
+	// Update only provided fields
+	if input.PropertyName != "" {
+		apartment.PropertyName = input.PropertyName
+	}
+	if input.Address != "" {
+		apartment.Address = input.Address
+	}
+	if input.PropertyType != "" {
+		apartment.PropertyType = input.PropertyType
+	}
+	if input.RentPrice != 0 {
+		apartment.RentPrice = input.RentPrice
+	}
+	if input.LocationLink != "" {
+		apartment.LocationLink = input.LocationLink
+	}
+	if input.Landmarks != "" {
+		apartment.Landmarks = input.Landmarks
+	}
+	if input.Latitude != nil {
+		apartment.Latitude = *input.Latitude
+	}
+	if input.Longitude != nil {
+		apartment.Longitude = *input.Longitude
+	}
+
+	// Save changes to apartment
+	if err := middleware.DBConn.Save(&apartment).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to update apartment", "error": err.Error()})
+	}
+
+	// ✅ Update Amenities only if provided and not empty
+	if input.Amenities != nil {
+		// Clear old amenities
+		middleware.DBConn.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentAmenity{})
+
+		// Re-insert new ones
+		for _, name := range *input.Amenities {
+			var amenity model.Amenity
+			middleware.DBConn.FirstOrCreate(&amenity, model.Amenity{Name: name})
+
+			newLink := model.ApartmentAmenity{
+				ApartmentID: apartment.ID,
+				AmenityID:   amenity.ID,
+			}
+			middleware.DBConn.Create(&newLink)
+		}
+	}
+
+	// ✅ Update House Rules only if provided and not empty
+	if input.HouseRules != nil {
+		// Clear old house rules
+		middleware.DBConn.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentHouseRule{})
+
+		// Re-insert new ones
+		for _, rule := range *input.HouseRules {
+			var houseRule model.HouseRule
+			middleware.DBConn.FirstOrCreate(&houseRule, model.HouseRule{Rule: rule})
+
+			newLink := model.ApartmentHouseRule{
+				ApartmentID: apartment.ID,
+				HouseRuleID: houseRule.ID,
+			}
+			middleware.DBConn.Create(&newLink)
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message":   "Apartment updated successfully",
+		"apartment": apartment,
 	})
 }
