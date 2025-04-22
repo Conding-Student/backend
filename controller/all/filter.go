@@ -3,6 +3,7 @@ package controller
 import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -25,6 +26,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		Amenities        []string `json:"amenities"`
 		HouseRules       []string `json:"house_rules"`
 		InquiriesCount   int64    `json:"inquiries_count"`
+		RelevanceScore   int      `json:"-"`
 	}
 
 	// Get query parameters
@@ -37,7 +39,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	var apartments []model.Apartment
 	db := middleware.DBConn.Where("status = ?", "Approved")
 
-	// Filter by property types (if any)
+	// Filter by property types
 	if propertyTypes != "" {
 		propertyTypeList := strings.Split(propertyTypes, ",")
 		for i := range propertyTypeList {
@@ -67,31 +69,27 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 
 	var results []ApartmentDetails
 
-	// Helper to check if apartment has all items in filter
-	matchesAll := func(apartmentItems []string, filterItems []string) bool {
+	// Helper functions
+	countMatches := func(apartmentItems, filterItems []string) int {
+		count := 0
 		for _, f := range filterItems {
-			f = strings.TrimSpace(f)
-			found := false
 			for _, item := range apartmentItems {
-				if strings.EqualFold(strings.TrimSpace(item), f) {
-					found = true
+				if strings.EqualFold(strings.TrimSpace(item), strings.TrimSpace(f)) {
+					count++
 					break
 				}
 			}
-			if !found {
-				return false
-			}
 		}
-		return true
+		return count
 	}
 
+	// Process each apartment
 	for _, apt := range apartments {
 		var landlord model.User
 		if err := middleware.DBConn.Where("uid = ?", apt.Uid).First(&landlord).Error; err != nil {
 			continue
 		}
 
-		// Images
 		var images []model.ApartmentImage
 		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&images)
 		var imageUrls []string
@@ -99,7 +97,6 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			imageUrls = append(imageUrls, img.ImageURL)
 		}
 
-		// Videos
 		var videos []model.ApartmentVideo
 		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
 		var videoUrls []string
@@ -107,7 +104,6 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			videoUrls = append(videoUrls, vid.VideoURL)
 		}
 
-		// Amenities
 		var amenities []model.Amenity
 		middleware.DBConn.
 			Joins("JOIN apartment_amenities ON amenities.id = apartment_amenities.amenity_id").
@@ -118,7 +114,6 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			amenityNames = append(amenityNames, a.Name)
 		}
 
-		// House Rules
 		var houseRules []model.HouseRule
 		middleware.DBConn.
 			Joins("JOIN apartment_house_rules ON house_rules.id = apartment_house_rules.house_rule_id").
@@ -129,43 +124,45 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			ruleNames = append(ruleNames, r.Rule)
 		}
 
-		// Inquiries Count
 		var inquiryCount int64
 		middleware.DBConn.Model(&model.Inquiry{}).
 			Where("apartment_id = ?", apt.ID).Count(&inquiryCount)
 
-		// Apply amenity and rule filters
-		if c.Query("amenities") != "" && !matchesAll(amenityNames, amenitiesFilter) {
-			continue
-		}
-		if c.Query("house_rules") != "" && !matchesAll(ruleNames, houseRulesFilter) {
-			continue
-		}
+		// Calculate relevance score
+		score := 0
+		score += countMatches(amenityNames, amenitiesFilter)
+		score += countMatches(ruleNames, houseRulesFilter)
 
-		// Append result
-		results = append(results, ApartmentDetails{
-			Apartment:        apt,
-			LandlordName:     landlord.Fullname,
-			LandlordEmail:    landlord.Email,
-			LandlordPhone:    landlord.PhoneNumber,
-			LandlordAddress:  landlord.Address,
-			LandlordValidID:  landlord.ValidID,
-			LandlordPhotoURL: landlord.PhotoURL,
-			LandlordUserType: landlord.UserType,
-			LandlordStatus:   landlord.AccountStatus,
-			Images:           imageUrls,
-			Videos:           videoUrls,
-			Amenities:        amenityNames,
-			HouseRules:       ruleNames,
-			InquiriesCount:   inquiryCount,
-		})
+		if score > 0 || (c.Query("amenities") == "" && c.Query("house_rules") == "") {
+			results = append(results, ApartmentDetails{
+				Apartment:        apt,
+				LandlordName:     landlord.Fullname,
+				LandlordEmail:    landlord.Email,
+				LandlordPhone:    landlord.PhoneNumber,
+				LandlordAddress:  landlord.Address,
+				LandlordValidID:  landlord.ValidID,
+				LandlordPhotoURL: landlord.PhotoURL,
+				LandlordUserType: landlord.UserType,
+				LandlordStatus:   landlord.AccountStatus,
+				Images:           imageUrls,
+				Videos:           videoUrls,
+				Amenities:        amenityNames,
+				HouseRules:       ruleNames,
+				InquiriesCount:   inquiryCount,
+				RelevanceScore:   score,
+			})
+		}
 	}
+
+	// Sort by Relevance Score descending
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].RelevanceScore > results[j].RelevanceScore
+	})
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"apartments": results,
 	})
 }
-
 // view the full details of the selected apartment
 
 func FetchSingleApartmentDetails(c *fiber.Ctx) error {
