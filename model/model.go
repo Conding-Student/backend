@@ -35,19 +35,20 @@ type User struct {
 }
 
 type Apartment struct {
-	ID           uint      `gorm:"primaryKey"`
-	Uid          string    `gorm:"not null"` // Landlord's UID; no foreign key constraint here.
-	PropertyName string    `gorm:"not null"`
-	Address      string    `gorm:"not null"`
-	PropertyType string    `gorm:"not null"`
-	RentPrice    float64   `gorm:"not null"`
-	LocationLink string    `gorm:"not null"`
-	Landmarks    string    `gorm:"not null"`
-	Status       string    `gorm:"not null;default:'Pending'"`
-	Latitude     float64   `gorm:"null"`
-	Longitude    float64   `gorm:"null"`
-	UserID       string    `gorm:"not null"` // Add this field to reference the landlord's UID
-	CreatedAt    time.Time `json:"created_at"`
+	ID             uint      `gorm:"primaryKey"`
+	Uid            string    `gorm:"not null"` // Landlord's UID; no foreign key constraint here.
+	PropertyName   string    `gorm:"not null"`
+	Address        string    `gorm:"not null"`
+	PropertyType   string    `gorm:"not null"`
+	RentPrice      float64   `gorm:"not null"`
+	LocationLink   string    `gorm:"not null"`
+	Landmarks      string    `gorm:"not null"`
+	Status         string    `gorm:"not null;default:'Pending'"`
+	Latitude       float64   `gorm:"null"`
+	Longitude      float64   `gorm:"null"`
+	Allowed_Gender string    `gorm:"not null"`
+	UserID         string    `gorm:"not null"` // Add this field to reference the landlord's UID
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // Landlord Profile (Related to User via Uid)

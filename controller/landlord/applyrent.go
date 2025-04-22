@@ -12,21 +12,21 @@ import (
 
 // Struct for parsing apartment creation request
 type ApartmentRequest struct {
-	PropertyName string   `json:"property_name"`
-	PropertyType string   `json:"property_type"`
-	RentPrice    float64  `json:"rent_price"`
-	LocationLink string   `json:"location_link"`
-	Landmarks    string   `json:"landmarks"`
-	Amenities    []string `json:"amenities"`
-	HouseRules   []string `json:"house_rules"`
-	ImageURLs    []string `json:"image_urls"` // for images
-	VideoURLs    []string `json:"video_urls"` // for videos
-	Latitude     float64  `json:"latitude"`   // New field for latitude
-	Longitude    float64  `json:"longitude"`  // New field for longitude
+	PropertyName  string   `json:"property_name"`
+	PropertyType  string   `json:"property_type"`
+	RentPrice     float64  `json:"rent_price"`
+	LocationLink  string   `json:"location_link"`
+	Landmarks     string   `json:"landmarks"`
+	Amenities     []string `json:"amenities"`
+	HouseRules    []string `json:"house_rules"`
+	ImageURLs     []string `json:"image_urls"`
+	VideoURLs     []string `json:"video_urls"`
+	Latitude      float64  `json:"latitude"`
+	Longitude     float64  `json:"longitude"`
+	AllowedGender string   `json:"allowed_gender"` // New field
 }
 
 func CreateApartment(c *fiber.Ctx) error {
-	// 🔍 Extract user claims from JWT
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -34,7 +34,6 @@ func CreateApartment(c *fiber.Ctx) error {
 		})
 	}
 
-	// 🆔 Extract Landlord Uid safely from JWT claims
 	uid, ok := userClaims["uid"].(string)
 	if !ok || uid == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -42,7 +41,6 @@ func CreateApartment(c *fiber.Ctx) error {
 		})
 	}
 
-	// Parse request body
 	var req ApartmentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
@@ -50,72 +48,54 @@ func CreateApartment(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
-	// 🔍 Verify if the user is registered as a landlord
-	var user model.User
-	if err := middleware.DBConn.Where("uid = ? AND user_type = ?", uid, "Landlord").First(&user).Error; err != nil {
+
+	if err := middleware.DBConn.Where("uid = ? AND user_type = ?", uid, "Landlord").First(&model.User{}).Error; err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Unauthorized: User is not a registered landlord",
 		})
 	}
-	// 📌 Validate required fields
-	if req.PropertyName == "" || req.PropertyType == "" || req.RentPrice <= 0 || req.LocationLink == "" {
+
+	if req.PropertyName == "" || req.PropertyType == "" || req.RentPrice <= 0 || req.LocationLink == "" || req.AllowedGender == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Missing required fields: property_name, property_type, rent_price, or location_link",
+			"message": "Missing required fields: property_name, property_type, rent_price, location_link, or allowed_gender",
 		})
 	}
 
-	// Validate required fields
-	if req.PropertyName == "" || req.PropertyType == "" || req.RentPrice <= 0 || req.LocationLink == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Missing required fields: property_name, property_type, rent_price, or location_link",
-		})
-	}
-
-	// Validate latitude and longitude
 	if req.Latitude == 0 || req.Longitude == 0 {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": "Latitude and Longitude are required and must be valid coordinates",
 		})
 	}
 
-	// Start transaction
 	tx := middleware.DBConn.Begin()
 	if tx.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Database error: Unable to start transaction",
 		})
 	}
-	// 🔍 Check if the apartment with the same PropertyName and LocationLink already exists for the same UID
-	var existingApartment model.Apartment
-	if err := tx.Where("property_name = ? AND location_link = ? AND uid = ?", req.PropertyName, req.LocationLink, uid).First(&existingApartment).Error; err == nil {
+
+	var existing model.Apartment
+	if err := tx.Where("property_name = ? AND location_link = ? AND uid = ?", req.PropertyName, req.LocationLink, uid).First(&existing).Error; err == nil {
 		tx.Rollback()
 		return c.Status(http.StatusConflict).JSON(fiber.Map{
 			"message": "Apartment with the same property name and location already exists for this landlord",
 		})
 	}
-	// 🆔 Extract Landlord Uid safely from JWT claims
-	uid, ok = userClaims["uid"].(string)
-	if !ok || uid == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Unauthorized: Invalid landlord UID",
-		})
-	}
 
-	// Create the apartment
 	apartment := model.Apartment{
-		Uid:          uid,
-		PropertyName: req.PropertyName,
-		PropertyType: req.PropertyType,
-		RentPrice:    req.RentPrice,
-		LocationLink: req.LocationLink,
-		Landmarks:    req.Landmarks,
-		Status:       "Pending", // Default status
-		Latitude:     req.Latitude,
-		Longitude:    req.Longitude,
-		UserID:       uid, // Assuming UserID is the same as Uid
+		Uid:            uid,
+		PropertyName:   req.PropertyName,
+		PropertyType:   req.PropertyType,
+		RentPrice:      req.RentPrice,
+		LocationLink:   req.LocationLink,
+		Landmarks:      req.Landmarks,
+		Status:         "Pending",
+		Latitude:       req.Latitude,
+		Longitude:      req.Longitude,
+		UserID:         uid,
+		Allowed_Gender: req.AllowedGender,
 	}
 
-	// Insert apartment into the apartments table
 	if err := tx.Create(&apartment).Error; err != nil {
 		tx.Rollback()
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -123,114 +103,47 @@ func CreateApartment(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
-	// 🔹 Insert amenities (Avoid duplicates)
-	for _, amenityName := range req.Amenities {
-		var amenity model.Amenity
-		if err := tx.Where("name = ?", amenityName).FirstOrCreate(&amenity, model.Amenity{Name: amenityName}).Error; err != nil {
-			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to add amenities",
-				"error":   err.Error(),
-			})
-		}
 
-		apartmentAmenity := model.ApartmentAmenity{
-			ApartmentID: apartment.ID,
-			AmenityID:   amenity.ID,
-		}
-		if err := tx.Create(&apartmentAmenity).Error; err != nil {
+	for _, name := range req.Amenities {
+		var a model.Amenity
+		if err := tx.Where("name = ?", name).FirstOrCreate(&a, model.Amenity{Name: name}).Error; err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to link amenities",
-				"error":   err.Error(),
-			})
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Database error: Unable to add amenities", "error": err.Error()})
 		}
+		tx.Create(&model.ApartmentAmenity{ApartmentID: apartment.ID, AmenityID: a.ID})
 	}
 
-	// 🔹 Insert house rules (Avoid duplicates)
-	for _, ruleName := range req.HouseRules {
-		var houseRule model.HouseRule
-		if err := tx.Where("rule = ?", ruleName).FirstOrCreate(&houseRule, model.HouseRule{Rule: ruleName}).Error; err != nil {
+	for _, rule := range req.HouseRules {
+		var h model.HouseRule
+		if err := tx.Where("rule = ?", rule).FirstOrCreate(&h, model.HouseRule{Rule: rule}).Error; err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to add house rules",
-				"error":   err.Error(),
-			})
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Database error: Unable to add house rules", "error": err.Error()})
 		}
-
-		apartmentHouseRule := model.ApartmentHouseRule{
-			ApartmentID: apartment.ID,
-			HouseRuleID: houseRule.ID,
-		}
-		if err := tx.Create(&apartmentHouseRule).Error; err != nil {
-			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Database error: Unable to link house rules",
-				"error":   err.Error(),
-			})
-		}
+		tx.Create(&model.ApartmentHouseRule{ApartmentID: apartment.ID, HouseRuleID: h.ID})
 	}
-	// Upload images to Cloudinary
+
 	var imageURLs []string
-	for _, image := range req.ImageURLs {
-		// Call Cloudinary upload logic
-		uploadedURL, err := config.UploadImage(image)
+	for _, img := range req.ImageURLs {
+		url, err := config.UploadImage(img)
 		if err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to upload image to Cloudinary",
-				"error":   err.Error(),
-			})
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to upload image to Cloudinary", "error": err.Error()})
 		}
-		imageURLs = append(imageURLs, uploadedURL)
+		imageURLs = append(imageURLs, url)
+		tx.Create(&model.ApartmentImage{ApartmentID: apartment.ID, ImageURL: url})
 	}
 
-	// Upload videos to Cloudinary
 	var videoURLs []string
-	for _, video := range req.VideoURLs {
-		// Call Cloudinary upload logic
-		uploadedURL, err := config.UploadVideo(video)
+	for _, vid := range req.VideoURLs {
+		url, err := config.UploadVideo(vid)
 		if err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to upload video to Cloudinary",
-				"error":   err.Error(),
-			})
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to upload video to Cloudinary", "error": err.Error()})
 		}
-		videoURLs = append(videoURLs, uploadedURL)
+		videoURLs = append(videoURLs, url)
+		tx.Create(&model.ApartmentVideo{ApartmentID: apartment.ID, VideoURL: url})
 	}
 
-	// Insert image URLs into the database
-	for _, imageURL := range imageURLs {
-		apartmentImage := model.ApartmentImage{
-			ApartmentID: apartment.ID,
-			ImageURL:    imageURL,
-		}
-		if err := tx.Create(&apartmentImage).Error; err != nil {
-			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to save apartment image URL to database",
-				"error":   err.Error(),
-			})
-		}
-	}
-
-	// Insert video URLs into the database (optional)
-	for _, videoURL := range videoURLs {
-		apartmentVideo := model.ApartmentVideo{
-			ApartmentID: apartment.ID,
-			VideoURL:    videoURL,
-		}
-		if err := tx.Create(&apartmentVideo).Error; err != nil {
-			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to save apartment video URL to database",
-				"error":   err.Error(),
-			})
-		}
-	}
-
-	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Database error: Transaction commit failed",
@@ -238,7 +151,6 @@ func CreateApartment(c *fiber.Ctx) error {
 		})
 	}
 
-	// 🎉 Success Response
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": "Apartment created successfully",
 		"data": fiber.Map{
