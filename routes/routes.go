@@ -60,7 +60,6 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/admin/update-profile", admincontroller.UpdateAdminProfile) // updating admin email or password
 
 	// chart per year
-	app.Get("/api/stats/user-years", admincontroller4.GetAvailableUserYears)
 	app.Get("/api/stats/users-by-year", admincontroller4.GetUserStatsByYear)
 
 	// Dashboard

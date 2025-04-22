@@ -62,20 +62,22 @@ func CountApartmentsByStatus(c *fiber.Ctx) error {
 	})
 }
 
-// for charts
 func CountApartmentsByPropertyType(c *fiber.Ctx) error {
 	propertyType := c.Params("property_type") // e.g. Apartment, Condo, All
 
 	var count int64
 	var err error
 
+	// Only count apartments that are "Approved"
 	if propertyType == "" || strings.ToLower(propertyType) == "all" {
-		// Count all apartments regardless of property type
-		err = middleware.DBConn.Model(&model.Apartment{}).Count(&count).Error
-	} else {
-		// Count apartments with specific property type
+		// Count all "Approved" apartments
 		err = middleware.DBConn.Model(&model.Apartment{}).
-			Where("property_type = ?", propertyType).
+			Where("status = ?", "Approved").
+			Count(&count).Error
+	} else {
+		// Count "Approved" apartments with specific property type
+		err = middleware.DBConn.Model(&model.Apartment{}).
+			Where("property_type = ? AND status = ?", propertyType, "Approved").
 			Count(&count).Error
 	}
 
