@@ -35,6 +35,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	maxPriceStr := c.Query("max_price")
 	amenitiesFilter := strings.Split(c.Query("amenities"), ",")
 	houseRulesFilter := strings.Split(c.Query("house_rules"), ",")
+	allowedGenders := c.Query("allowed_genders") // New parameter
 
 	var apartments []model.Apartment
 	db := middleware.DBConn.Where("status = ?", "Approved")
@@ -58,6 +59,15 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		if maxPrice, err := strconv.ParseFloat(maxPriceStr, 64); err == nil {
 			db = db.Where("rent_price <= ?", maxPrice)
 		}
+	}
+
+	// New: Filter by allowed genders
+	if allowedGenders != "" {
+		allowedGendersList := strings.Split(allowedGenders, ",")
+		for i := range allowedGendersList {
+			allowedGendersList[i] = strings.TrimSpace(allowedGendersList[i])
+		}
+		db = db.Where("allowed_gender IN ?", allowedGendersList)
 	}
 
 	if err := db.Find(&apartments).Error; err != nil {
@@ -163,6 +173,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		"apartments": results,
 	})
 }
+
 // view the full details of the selected apartment
 
 func FetchSingleApartmentDetails(c *fiber.Ctx) error {
