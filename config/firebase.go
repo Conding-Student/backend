@@ -12,7 +12,7 @@ import (
 var FirebaseAuth *auth.Client
 
 func InitializeFirebase() *firebase.App {
-	opt := option.WithCredentialsFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-17ce59fccd.json")
+	opt := option.WithCredentialsFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-682d5e8e0b.json")
 
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
