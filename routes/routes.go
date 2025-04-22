@@ -50,7 +50,7 @@ func AppRoutes(app *fiber.App) {
 
 	//////////////////// Admin //////////////////
 	app.Post("/admin/register", admincontroller.RegisterAdmin) // register admin
-	app.Post("/admin/login", admincontroller.LoginHandler)     // login admin
+	app.Post("/admin/login", admincontroller.LoginHandler)     // login admin //password: yourSecurePassword123
 
 	app.Get("/display/users", admincontroller2.GetFilteredUserDetails) // Fetch all users can be filtered through name=John,accountname=artem&user_type=Landlord
 	app.Put("/users/update", admincontroller2.UpdateUserDetails)       // Updating user values in the admin
