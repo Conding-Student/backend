@@ -168,7 +168,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 
 // view the full details of the selected apartment
 
-func FetchSingleApprovedApartmentForAll(c *fiber.Ctx) error {
+func FetchSingleApartmentDetails(c *fiber.Ctx) error {
 	type ApartmentDetails struct {
 		model.Apartment
 		LandlordName     string   `json:"landlord_name"`
@@ -189,9 +189,9 @@ func FetchSingleApprovedApartmentForAll(c *fiber.Ctx) error {
 	apartmentID := c.Params("id")
 
 	var apt model.Apartment
-	if err := middleware.DBConn.Where("id = ? AND status = ?", apartmentID, "Approved").First(&apt).Error; err != nil {
+	if err := middleware.DBConn.Where("id = ? AND (status = ? OR status = ?)", apartmentID, "Approved", "Pending").First(&apt).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Apartment not found or not approved",
+			"message": "Apartment not found or not approved/pending",
 			"error":   err.Error(),
 		})
 	}
