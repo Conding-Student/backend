@@ -32,10 +32,12 @@ func AppRoutes(app *fiber.App) {
 	})
 	go tenantscontroller.DeleteExpiredInquiries()
 	//////////////////// Landlord //////////////////
-	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)          //insert application for landlord apartment
+	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment) //insert application for landlord apartment
+
+	app.Put("/apartments/:id/media", middleware.AuthMiddleware, landlordcontroller.UpdateApartmentMedia)
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord) //Property get by landlord
 	app.Put("/landlord/apartmentupdate/:id", middleware.AuthMiddleware, landlordcontroller.UpdateApartmentDetails)
-	
+
 	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
 	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
 
