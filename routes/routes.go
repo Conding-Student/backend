@@ -65,6 +65,9 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/api/stats/users-by-year", admincontroller4.GetUserStatsByYear)
 
 	// Dashboard
+
+	//User Management
+	app.Get("/adminuserinfo/search", admincontroller2.SearchUsers)                                      //# Search by fullname GET /users/search?field=fullname&search_term=Artem# Search by email	GET /users/search?field=email&search_term=example.com # Search by phone number GET /users/search?field=phone_number&search_term=+12345
 	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)                               //displaying number of users by usertype
 	app.Get("/admin/count-user/:account_status/:user_type", admincontroller2.CountUsersByStatusAndType) //displaying number of users whose verified and still pending
 	app.Get("/admin/count_apartment/:status", admincontroller2.CountApartmentsByStatus)                 //displaying number of users by usertype
@@ -87,6 +90,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
 	app.Get("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant) //http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
 	app.Get("/allapartments/search", all.SearchApartments)
+
 	//////////////////// Tenant //////////////////
 	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)
 	app.Get("/fetchpending/inquiry", middleware.AuthMiddleware, tenantscontroller.FetchPendingInquiriesForTenant)
