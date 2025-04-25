@@ -15,12 +15,15 @@ func CountUsersByType(c *fiber.Ctx) error {
 	var err error
 
 	if userType == "" || strings.ToLower(userType) == "all" {
-		// Count all users
-		err = middleware.DBConn.Model(&model.User{}).Count(&count).Error
+		// Count all users with specific statuses
+		err = middleware.DBConn.Model(&model.User{}).
+			Where("account_status IN ?", []string{"Unverified", "Pending", "Verified"}).
+			Count(&count).Error
 	} else {
-		// Count users by specific type
+		// Count users by specific type with specific statuses
 		err = middleware.DBConn.Model(&model.User{}).
 			Where("user_type = ?", userType).
+			Where("account_status IN ?", []string{"Unverified", "Pending", "Verified"}).
 			Count(&count).Error
 	}
 

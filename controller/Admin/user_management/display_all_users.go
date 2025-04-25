@@ -34,10 +34,10 @@ func GetFilteredUserDetails(c *fiber.Ctx) error {
 
 	offset := (page - 1) * limit
 
-	// 📌 Base query with selected fields only
+	// Fetch users with status "Unverified" OR "Pending" (across all tenants)
 	query := middleware.DBConn.Table("users").
 		Select("uid, email, phone_number, fullname, address, valid_id, account_status, user_type").
-		Where("account_status != ?", "deleteds")
+		Where("account_status IN ?", []string{"Unverified", "Pending", "Verified"}) // Explicit status filter
 
 	// ✅ Apply filters
 	if userType != "" {
@@ -179,7 +179,7 @@ func UpdateUserDetails(c *fiber.Ctx) error {
 	})
 }
 
-// ✅ Function to soft-delete a user by setting account_status to 'deleted'
+// ✅ Function to soft-delete a user and related apartments and inquiries
 func SoftDeleteUser(c *fiber.Ctx) error {
 	uid := c.Params("uid") // Get the UID from the URL path parameter
 
@@ -192,9 +192,21 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch the user record by UID
+	// Start a transaction
+	tx := middleware.DBConn.Begin()
+	if tx.Error != nil {
+		log.Println("[ERROR] Failed to start transaction:", tx.Error)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+			RetCode: "500",
+			Message: "Failed to start transaction",
+			Data:    nil,
+		})
+	}
+
+	// Fetch the user record by UID within the transaction
 	var user model.User
-	if err := middleware.DBConn.Where("uid = ?", uid).First(&user).Error; err != nil {
+	if err := tx.Where("uid = ?", uid).First(&user).Error; err != nil {
+		tx.Rollback()
 		log.Println("[ERROR] User not found:", err)
 		return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
 			RetCode: "404",
@@ -203,10 +215,10 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Soft delete by updating account_status
+	// Soft delete the user by updating account_status
 	user.AccountStatus = "Deleted"
-
-	if err := middleware.DBConn.Save(&user).Error; err != nil {
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
 		log.Println("[ERROR] Failed to soft-delete user:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
 			RetCode: "500",
@@ -215,14 +227,45 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// Soft delete all related apartments by setting status to "Deleted"
+	if err := tx.Model(&model.Apartment{}).Where("user_id = ?", uid).Update("status", "Deleted").Error; err != nil {
+		tx.Rollback()
+		log.Println("[ERROR] Failed to update related apartments:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+			RetCode: "500",
+			Message: "Failed to update related apartments",
+			Data:    nil,
+		})
+	}
+
+	// Update all related inquiries by setting status to "Rejected"
+	if err := tx.Model(&model.Inquiry{}).Where("uid = ?", uid).Update("status", "Rejected").Error; err != nil {
+		tx.Rollback()
+		log.Println("[ERROR] Failed to update related inquiries:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+			RetCode: "500",
+			Message: "Failed to update related inquiries",
+			Data:    nil,
+		})
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		log.Println("[ERROR] Failed to commit transaction:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+			RetCode: "500",
+			Message: "Failed to complete deletion",
+			Data:    nil,
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
 		RetCode: "200",
-		Message: "User soft-deleted successfully",
+		Message: "User and related data soft-deleted successfully",
 		Data: fiber.Map{
 			"uid":            user.Uid,
 			"account_status": user.AccountStatus,
 		},
 	})
 }
-
-//
