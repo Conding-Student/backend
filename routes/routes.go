@@ -86,7 +86,7 @@ func AppRoutes(app *fiber.App) {
 	//	FOR ALL
 	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
 	app.Get("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant) //http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
-
+	app.Get("/allapartments/search", all.SearchApartments)
 	//////////////////// Tenant //////////////////
 	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)
 	app.Get("/fetchpending/inquiry", middleware.AuthMiddleware, tenantscontroller.FetchPendingInquiriesForTenant)

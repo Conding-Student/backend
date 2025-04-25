@@ -126,14 +126,15 @@ func saveOrUpdateUser(uid, email string) string {
 
 			// Create new user entry
 			newUser := model.User{
-				Uid:         uid,
-				Email:       email,
-				UserType:    role,
-				PhoneNumber: firebaseUser.PhoneNumber,
-				Provider:    provider,
-				PhotoURL:    firebaseUser.PhotoURL,
-				Fullname:    firebaseUser.DisplayName,
-				Birthday:    time.Time{}, // Requires frontend to send the birthday separately
+				Uid:           uid,
+				Email:         email,
+				UserType:      role,
+				PhoneNumber:   firebaseUser.PhoneNumber,
+				Provider:      provider,
+				PhotoURL:      firebaseUser.PhotoURL,
+				Fullname:      firebaseUser.DisplayName,
+				Birthday:      time.Time{},
+				AccountStatus: "Unverified", // Add this line
 			}
 
 			// Save new user in the database
