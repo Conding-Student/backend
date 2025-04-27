@@ -32,10 +32,12 @@ func AppRoutes(app *fiber.App) {
 	})
 	go tenantscontroller.DeleteExpiredInquiries()
 	//////////////////// Landlord //////////////////
-	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)          //insert application for landlord apartment
+	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment) //insert application for landlord apartment
+
+	app.Put("/apartments/:id/media", middleware.AuthMiddleware, landlordcontroller.UpdateApartmentMedia)
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord) //Property get by landlord
 	app.Put("/landlord/apartmentupdate/:id", middleware.AuthMiddleware, landlordcontroller.UpdateApartmentDetails)
-	
+
 	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
 	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
 
@@ -62,12 +64,15 @@ func AppRoutes(app *fiber.App) {
 	// chart per year
 	app.Get("/api/stats/users-by-year", admincontroller4.GetUserStatsByYear)
 
-	// Dashboard
+	// Dashboard//
+	//User Management//
+	app.Get("/adminuserinfo/search", admincontroller2.SearchUsers)                                      //# Search by fullname GET /users/search?field=fullname&search_term=Artem# Search by email	GET /users/search?field=email&search_term=example.com # Search by phone number GET /users/search?field=phone_number&search_term=+12345
 	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)                               //displaying number of users by usertype
 	app.Get("/admin/count-user/:account_status/:user_type", admincontroller2.CountUsersByStatusAndType) //displaying number of users whose verified and still pending
 	app.Get("/admin/count_apartment/:status", admincontroller2.CountApartmentsByStatus)                 //displaying number of users by usertype
 	app.Get("/admin/count-property-type/:property_type", admincontroller2.CountApartmentsByPropertyType)
 	app.Get("/admin/count-apartment/:status/:property_type", admincontroller2.CountApartmentsByStatusAndType) //displaying toal number of both pending & property type
+	//User Management//
 
 	app.Get("/admin/apartments/details", admincontroller3.GetFilteredApartments)    //Get complete apartment details along with other data and can be filtered
 	app.Put("/admin/apartments/update/:id", admincontroller.UpdateApartmentInfo)    // Update the apartment details
@@ -84,6 +89,7 @@ func AppRoutes(app *fiber.App) {
 	//	FOR ALL
 	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
 	app.Get("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant) //http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
+	app.Get("/allapartments/search", all.SearchApartments)
 
 	//////////////////// Tenant //////////////////
 	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)

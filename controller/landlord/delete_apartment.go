@@ -125,21 +125,6 @@ func DeleteApartmentAny(c *fiber.Ctx) error {
 		})
 	}
 
-	// 📥 Parse request body to confirm deletion
-	// var delReq model.DeleteApartmentRequest
-	// if err := c.BodyParser(&delReq); err != nil {
-	// 	return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-	// 		"message": "Invalid request format",
-	// 		"error":   err.Error(),
-	// 	})
-	// }
-
-	// if !delReq.Confirm {
-	// 	return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-	// 		"message": "Deletion not confirmed",
-	// 	})
-	// }
-
 	// 🔍 Check if apartment exists and belongs to the landlord
 	var apartment model.Apartment
 	if err := middleware.DBConn.Where("id = ? AND uid = ?", apartmentID, uid).First(&apartment).Error; err != nil {

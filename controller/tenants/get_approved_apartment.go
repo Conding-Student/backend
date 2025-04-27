@@ -3,9 +3,9 @@ package controller
 import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
+	"sort"
 
 	"github.com/gofiber/fiber/v2"
-	//"github.com/golang-jwt/jwt/v5"
 )
 
 // Function to fetch approved apartments for tenants
@@ -21,7 +21,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		LandlordUserType string   `json:"landlord_user_type"`
 		LandlordStatus   string   `json:"landlord_account_status"`
 		Images           []string `json:"images"`
-		Videos           []string `json:"videos"` // <-- Added field for videos
+		Videos           []string `json:"videos"`
 		Amenities        []string `json:"amenities"`
 		HouseRules       []string `json:"house_rules"`
 		InquiriesCount   int64    `json:"inquiries_count"`
@@ -40,10 +40,10 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	for _, apt := range apartments {
 		var landlord model.User
 		if err := middleware.DBConn.Where("uid = ?", apt.Uid).First(&landlord).Error; err != nil {
-			// Skip if no landlord is found
-			continue
+			continue // Skip if landlord not found
 		}
 
+		// Fetch images
 		var images []model.ApartmentImage
 		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&images)
 		var imageUrls []string
@@ -51,14 +51,15 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			imageUrls = append(imageUrls, img.ImageURL)
 		}
 
-			// Fetch Videos
-			var videos []model.ApartmentVideo
-			middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
-			var videoUrls []string
-			for _, vid := range videos {
-				videoUrls = append(videoUrls, vid.VideoURL)
-			}
+		// Fetch videos
+		var videos []model.ApartmentVideo
+		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
+		var videoUrls []string
+		for _, vid := range videos {
+			videoUrls = append(videoUrls, vid.VideoURL)
+		}
 
+		// Fetch amenities
 		var amenities []model.Amenity
 		middleware.DBConn.
 			Joins("JOIN apartment_amenities ON amenities.id = apartment_amenities.amenity_id").
@@ -68,6 +69,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			amenityNames = append(amenityNames, a.Name)
 		}
 
+		// Fetch house rules
 		var houseRules []model.HouseRule
 		middleware.DBConn.
 			Joins("JOIN apartment_house_rules ON house_rules.id = apartment_house_rules.house_rule_id").
@@ -77,6 +79,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			ruleNames = append(ruleNames, r.Rule)
 		}
 
+		// Get inquiry count
 		var inquiryCount int64
 		middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ?", apt.ID).Count(&inquiryCount)
 
@@ -91,12 +94,17 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			LandlordUserType: landlord.UserType,
 			LandlordStatus:   landlord.AccountStatus,
 			Images:           imageUrls,
-			Videos:           videoUrls, // <-- Added to response
+			Videos:           videoUrls,
 			Amenities:        amenityNames,
 			HouseRules:       ruleNames,
 			InquiriesCount:   inquiryCount,
 		})
 	}
+
+	// Sort apartments by InquiriesCount in descending order
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].InquiriesCount > results[j].InquiriesCount
+	})
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"apartments": results,

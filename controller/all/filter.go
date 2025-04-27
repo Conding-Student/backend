@@ -3,6 +3,7 @@ package controller
 import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -274,4 +275,49 @@ func FetchSingleApartmentDetails(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(result)
+}
+
+// Search request structure
+type ApartmentSearchRequest struct {
+	SearchTerm string `query:"search_term" validate:"required"`
+}
+
+// 🏢 SearchApartments endpoint
+func SearchApartments(c *fiber.Ctx) error {
+	// Parse search parameters
+	var req ApartmentSearchRequest
+	if err := c.QueryParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid search parameters",
+			"error":   err.Error(),
+		})
+	}
+
+	// Validate required fields
+	if req.SearchTerm == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Search term is required",
+		})
+	}
+
+	// Prepare search pattern
+	searchPattern := "%" + req.SearchTerm + "%"
+
+	// Query apartments with search
+	var apartments []model.Apartment
+	result := middleware.DBConn.
+		Where("address ILIKE ?", searchPattern).
+		Find(&apartments)
+
+	if result.Error != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error",
+			"error":   result.Error.Error(),
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "Apartments retrieved successfully",
+		"data":    apartments,
+	})
 }
