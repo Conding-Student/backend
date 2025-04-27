@@ -169,10 +169,19 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		return results[i].RelevanceScore > results[j].RelevanceScore
 	})
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"apartments": results,
-	})
+	// At the end of your FetchApprovedApartmentsForTenant function
+		if len(results) == 0 {
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
+				"apartments": make([]interface{}, 0), // Explicit empty array
+				"message":    "No apartments found matching filters",
+			})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"apartments": results,
+		})
 }
+
 
 // view the full details of the selected apartment
 
