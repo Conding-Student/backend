@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"intern_template_v1/config"
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
 
@@ -129,111 +130,248 @@ func FetchApartmentsByLandlord(c *fiber.Ctx) error {
 
 // update apartment details
 
-func UpdateApartmentDetails(c *fiber.Ctx) error {
-	type UpdateInput struct {
-		PropertyName string    `json:"property_name"`
-		Address      string    `json:"address"`
-		PropertyType string    `json:"property_type"`
-		RentPrice    float64   `json:"rent_price"`
-		LocationLink string    `json:"location_link"`
-		Landmarks    string    `json:"landmarks"`
-		Latitude     *float64  `json:"latitude"`  // use pointer to detect if provided
-		Longitude    *float64  `json:"longitude"` // same here
-		Amenities    *[]string `json:"amenities"`
-		HouseRules   *[]string `json:"house_rules"`
-	}
+func UpdateApartment(c *fiber.Ctx) error {
+    type UpdateInput struct {
+        // Media fields
+        ImageURLs []string `json:"image_urls"`
+        VideoURLs []string `json:"video_urls"`
+        
+        // Property details
+        PropertyName string    `json:"property_name"`
+        Address      string    `json:"address"`
+        PropertyType string    `json:"property_type"`
+        RentPrice    float64   `json:"rent_price"`
+        LocationLink string    `json:"location_link"`
+        Landmarks    string    `json:"landmarks"`
+        Latitude     *float64  `json:"latitude"`
+        Longitude    *float64  `json:"longitude"`
+        
+        // Associated data
+        Amenities  *[]string `json:"amenities"`
+        HouseRules *[]string `json:"house_rules"`
+    }
 
-	// Extract JWT user claims
-	userClaims, ok := c.Locals("user").(jwt.MapClaims)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Unauthorized"})
-	}
+    // Authentication and validation
+    userClaims, ok := c.Locals("user").(jwt.MapClaims)
+    if !ok {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Unauthorized"})
+    }
 
-	uid, ok := userClaims["uid"].(string)
-	if !ok || uid == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Invalid UID"})
-	}
+    uid, ok := userClaims["uid"].(string)
+    if !ok || uid == "" {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Invalid UID"})
+    }
 
-	apartmentID := c.Params("id")
-	var apartment model.Apartment
-	if err := middleware.DBConn.First(&apartment, "id = ? AND uid = ?", apartmentID, uid).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Apartment not found or unauthorized", "error": err.Error()})
-	}
+    apartmentID := c.Params("id")
+    var apartment model.Apartment
+    if err := middleware.DBConn.First(&apartment, "id = ? AND uid = ?", apartmentID, uid).Error; err != nil {
+        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Apartment not found or unauthorized"})
+    }
 
-	var input UpdateInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid input", "error": err.Error()})
-	}
+    var input UpdateInput
+    if err := c.BodyParser(&input); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid input", "error": err.Error()})
+    }
 
-	// Update only provided fields
-	if input.PropertyName != "" {
-		apartment.PropertyName = input.PropertyName
-	}
-	if input.Address != "" {
-		apartment.Address = input.Address
-	}
-	if input.PropertyType != "" {
-		apartment.PropertyType = input.PropertyType
-	}
-	if input.RentPrice != 0 {
-		apartment.RentPrice = input.RentPrice
-	}
-	if input.LocationLink != "" {
-		apartment.LocationLink = input.LocationLink
-	}
-	if input.Landmarks != "" {
-		apartment.Landmarks = input.Landmarks
-	}
-	if input.Latitude != nil {
-		apartment.Latitude = *input.Latitude
-	}
-	if input.Longitude != nil {
-		apartment.Longitude = *input.Longitude
-	}
+    // Start transaction
+    tx := middleware.DBConn.Begin()
+    defer func() {
+        if r := recover(); r != nil {
+            tx.Rollback()
+        }
+    }()
 
-	// Save changes to apartment
-	if err := middleware.DBConn.Save(&apartment).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to update apartment", "error": err.Error()})
-	}
+    // 1. Update property details
+    if input.PropertyName != "" {
+        apartment.PropertyName = input.PropertyName
+    }
+    if input.Address != "" {
+        apartment.Address = input.Address
+    }
+    if input.PropertyType != "" {
+        apartment.PropertyType = input.PropertyType
+    }
+    if input.RentPrice != 0 {
+        apartment.RentPrice = input.RentPrice
+    }
+    if input.LocationLink != "" {
+        apartment.LocationLink = input.LocationLink
+    }
+    if input.Landmarks != "" {
+        apartment.Landmarks = input.Landmarks
+    }
+    if input.Latitude != nil {
+        apartment.Latitude = *input.Latitude
+    }
+    if input.Longitude != nil {
+        apartment.Longitude = *input.Longitude
+    }
 
-	// ✅ Update Amenities only if provided and not empty
-	if input.Amenities != nil {
-		// Clear old amenities
-		middleware.DBConn.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentAmenity{})
+    if err := tx.Save(&apartment).Error; err != nil {
+        tx.Rollback()
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "message": "Failed to update apartment details",
+            "error": err.Error(),
+        })
+    }
 
-		// Re-insert new ones
-		for _, name := range *input.Amenities {
-			var amenity model.Amenity
-			middleware.DBConn.FirstOrCreate(&amenity, model.Amenity{Name: name})
+    // 2. Handle media updates
+    var imageURLs []string
+    if len(input.ImageURLs) > 0 {
+        // First delete existing images if we're replacing them
+        if err := tx.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentImage{}).Error; err != nil {
+            tx.Rollback()
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "message": "Failed to clear existing images",
+                "error": err.Error(),
+            })
+        }
 
-			newLink := model.ApartmentAmenity{
-				ApartmentID: apartment.ID,
-				AmenityID:   amenity.ID,
-			}
-			middleware.DBConn.Create(&newLink)
-		}
-	}
+        // Upload and save new images
+        for _, img := range input.ImageURLs {
+            url, err := config.UploadImage(img)
+            if err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to upload image",
+                    "error": err.Error(),
+                })
+            }
+            imageURLs = append(imageURLs, url)
+            if err := tx.Create(&model.ApartmentImage{
+                ApartmentID: apartment.ID,
+                ImageURL:    url,
+            }).Error; err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to save image URL",
+                    "error": err.Error(),
+                })
+            }
+        }
+    }
 
-	// ✅ Update House Rules only if provided and not empty
-	if input.HouseRules != nil {
-		// Clear old house rules
-		middleware.DBConn.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentHouseRule{})
+    var videoURLs []string
+    if len(input.VideoURLs) > 0 {
+        // First delete existing videos if we're replacing them
+        if err := tx.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentVideo{}).Error; err != nil {
+            tx.Rollback()
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "message": "Failed to clear existing videos",
+                "error": err.Error(),
+            })
+        }
 
-		// Re-insert new ones
-		for _, rule := range *input.HouseRules {
-			var houseRule model.HouseRule
-			middleware.DBConn.FirstOrCreate(&houseRule, model.HouseRule{Rule: rule})
+        // Upload and save new videos
+        for _, vid := range input.VideoURLs {
+            url, err := config.UploadVideo(vid)
+            if err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to upload video",
+                    "error": err.Error(),
+                })
+            }
+            videoURLs = append(videoURLs, url)
+            if err := tx.Create(&model.ApartmentVideo{
+                ApartmentID: apartment.ID,
+                VideoURL:    url,
+            }).Error; err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to save video URL",
+                    "error": err.Error(),
+                })
+            }
+        }
+    }
 
-			newLink := model.ApartmentHouseRule{
-				ApartmentID: apartment.ID,
-				HouseRuleID: houseRule.ID,
-			}
-			middleware.DBConn.Create(&newLink)
-		}
-	}
+    // 3. Update amenities if provided
+    if input.Amenities != nil {
+        // Clear existing amenities
+        if err := tx.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentAmenity{}).Error; err != nil {
+            tx.Rollback()
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "message": "Failed to clear existing amenities",
+                "error": err.Error(),
+            })
+        }
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message":   "Apartment updated successfully",
-		"apartment": apartment,
-	})
+        // Add new amenities
+        for _, amenityName := range *input.Amenities {
+            var amenity model.Amenity
+            if err := tx.FirstOrCreate(&amenity, model.Amenity{Name: amenityName}).Error; err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to find or create amenity",
+                    "error": err.Error(),
+                })
+            }
+
+            if err := tx.Create(&model.ApartmentAmenity{
+                ApartmentID: apartment.ID,
+                AmenityID:   amenity.ID,
+            }).Error; err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to link amenity to apartment",
+                    "error": err.Error(),
+                })
+            }
+        }
+    }
+
+    // 4. Update house rules if provided
+    if input.HouseRules != nil {
+        // Clear existing house rules
+        if err := tx.Where("apartment_id = ?", apartment.ID).Delete(&model.ApartmentHouseRule{}).Error; err != nil {
+            tx.Rollback()
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "message": "Failed to clear existing house rules",
+                "error": err.Error(),
+            })
+        }
+
+        // Add new house rules
+        for _, rule := range *input.HouseRules {
+            var houseRule model.HouseRule
+            if err := tx.FirstOrCreate(&houseRule, model.HouseRule{Rule: rule}).Error; err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to find or create house rule",
+                    "error": err.Error(),
+                })
+            }
+
+            if err := tx.Create(&model.ApartmentHouseRule{
+                ApartmentID: apartment.ID,
+                HouseRuleID: houseRule.ID,
+            }).Error; err != nil {
+                tx.Rollback()
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "message": "Failed to link house rule to apartment",
+                    "error": err.Error(),
+                })
+            }
+        }
+    }
+
+    // Commit transaction
+    if err := tx.Commit().Error; err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "message": "Transaction failed",
+            "error": err.Error(),
+        })
+    }
+
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "message": "Apartment updated successfully",
+        "data": fiber.Map{
+            "apartment":   apartment,
+            "image_urls":  imageURLs,
+            "video_urls":  videoURLs,
+            "amenities":   input.Amenities,
+            "house_rules": input.HouseRules,
+        },
+    })
 }
