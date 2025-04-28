@@ -82,7 +82,8 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		// Get inquiry count
 		var inquiryCount int64
 		var Accepted = "Accepted"
-		middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ? and status = ?", apt.ID, Accepted).Count(&inquiryCount)
+		var Pending = "Pending"
+		middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ? AND (status = ? OR status = ?)", apt.ID, Accepted, Pending).Count(&inquiryCount)
 
 		results = append(results, ApartmentDetails{
 			Apartment:        apt,
