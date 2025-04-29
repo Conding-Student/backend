@@ -47,6 +47,7 @@ type Apartment struct {
 	Latitude       float64   `gorm:"null"`
 	Longitude      float64   `gorm:"null"`
 	Allowed_Gender string    `gorm:"not null"`
+	Availability   string    `gorm:"null"`
 	UserID         string    `gorm:"not null"` // Add this field to reference the landlord's UID
 	CreatedAt      time.Time `json:"created_at"`
 }
