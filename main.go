@@ -51,17 +51,17 @@ func main() {
 	// Example usage of the JWT secret key
 	jwtSecret := os.Getenv("JWT_SECRET")
 	log.Println("Loaded JWT Secret:", jwtSecret) // 🔍 Debugging: REMOVE in production
-
-	// Do not remove this endpoint
-	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
-		return c.SendStatus(204) // No Content
-	})
-
 	// CORS CONFIG
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
+	// Do not remove this endpoint
+	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
+		return c.SendStatus(204) // No Content
+	})
+
+
 	// Step 5: Register Routes
 	routes.AppRoutes(app)
 	routes.UserRoutes(app)

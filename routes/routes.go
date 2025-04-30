@@ -73,8 +73,7 @@ func AppRoutes(app *fiber.App) {
 
 	//////////////////// GET //////////////////
 	app.Get("/api/stats/users-by-year", admincontroller4.GetUserStatsByYear)                            // chart per year
-	app.Get("/display/users", admincontroller2.GetFilteredUserDetails)                                  // Fetch all users can be filtered through name=John,accountname=artem&user_type=Landlord
-	app.Get("/adminuserinfo/search", admincontroller2.GetFilteredUserDetailspart2)                      // palit muna SearchUsers                                   //# Search by fullname GET /users/search?field=fullname&search_term=Artem# Search by email	GET /users/search?field=email&search_term=example.com # Search by phone number GET /users/search?field=phone_number&search_term=+12345
+	app.Get("/display/users", admincontroller2.GetFilteredUserDetails)                                  // Fetch all users can be filtered through name=John,accountname=artem&user_type=Landlord                                //# Search by fullname GET /users/search?field=fullname&search_term=Artem# Search by email	GET /users/search?field=email&search_term=example.com # Search by phone number GET /users/search?field=phone_number&search_term=+12345
 	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)                               //displaying number of users by usertype
 	app.Get("/admin/count-user/:account_status/:user_type", admincontroller2.CountUsersByStatusAndType) //displaying number of users whose verified and still pending
 	app.Get("/admin/count_apartment/:status", admincontroller2.CountApartmentsByStatus)                 //displaying number of users by usertype
