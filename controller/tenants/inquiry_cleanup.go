@@ -10,65 +10,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// FetchPendingInquiriesForTenant retrieves pending inquiries for the logged-in tenant
-func FetchPendingInquiriesForTenant(c *fiber.Ctx) error {
-	// 🔐 Extract user claims from JWT
-	userClaims, ok := c.Locals("user").(jwt.MapClaims)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Unauthorized: Missing JWT claims",
-		})
-	}
-
-	// 🆔 Get tenant UID from JWT
-	tenantUID, ok := userClaims["uid"].(string)
-	if !ok || tenantUID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Unauthorized: Invalid tenant UID",
-		})
-	}
-
-	// 📥 Struct to hold the result of the query
-	var results []struct {
-		InquiryMessage        string  `json:"inquiry_message"`
-		UserUID               string  `json:"user_uid"`
-		ApartmentName         string  `json:"apartment_name"`
-		ApartmentType         string  `json:"apartment_type"`
-		ApartmentRentPrice    float64 `json:"apartment_rent_price"`
-		ApartmentLocationLink string  `json:"apartment_location_link"`
-		ApartmentLandmarks    string  `json:"apartment_landmarks"`
-		Status                string  `json:"status"`
-		CreatedAt             string  `json:"created_at"`
-	}
-
-	// 🧠 SQL-like query to fetch pending inquiries for this tenant
-	if err := middleware.DBConn.Table("inquiries AS i").
-		Select(`
-			i.message AS inquiry_message,
-			i.uid AS user_uid,
-			a.property_name AS apartment_name,
-			a.property_type AS apartment_type,
-			a.rent_price AS apartment_rent_price,
-			a.location_link AS apartment_location_link,
-			a.landmarks AS apartment_landmarks,
-			i.status AS status,
-			i.created_at AS created_at`).
-		Joins("JOIN apartments a ON i.apartment_id = a.id").
-		Where("i.uid = ? AND i.status = ?", tenantUID, "Pending").
-		Order("i.created_at DESC").
-		Scan(&results).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Database error: Unable to fetch inquiries",
-			"error":   err.Error(),
-		})
-	}
-
-	// 🎉 Return the pending inquiries
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"pending_inquiries": results,
-	})
-}
-
 // DeleteInquiryAfterViewingNotification deletes the inquiry after tenant views rejection notification
 func DeleteInquiryAfterViewingNotification(c *fiber.Ctx) error {
 	// Extract JWT claims
@@ -207,7 +148,7 @@ func CountAcceptedOrRejectedInquiries(c *fiber.Ctx) error {
 		"accepted_or_rejected": count,
 	})
 }
-func GetApprovedOrRejectedInquiries(c *fiber.Ctx) error {
+func GetAllinquiries(c *fiber.Ctx) error {
 	// Extract JWT claims to get tenant UID
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)
 	if !ok {
@@ -243,7 +184,7 @@ func GetApprovedOrRejectedInquiries(c *fiber.Ctx) error {
 			FROM inquiries i
 			JOIN apartments a ON i.apartment_id = a.id
 			JOIN users u ON a.uid = u.uid
-			WHERE i.status IN ('Rejected', 'Accepted')
+			WHERE i.status IN ('Rejected', 'Accepted', 'Pending')
 			  AND i.uid = ? 
 			  AND u.user_type = 'Landlord'`, tenantUID).
 		Scan(&inquiries).Error; err != nil {
