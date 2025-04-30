@@ -114,10 +114,9 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/add/wishlist", middleware.AuthMiddleware, tenantscontroller.AddToWishlist)
 
 	//////////////////// GET //////////////////
-	app.Get("/fetchpending/inquiry", middleware.AuthMiddleware, tenantscontroller.FetchPendingInquiriesForTenant)
 	app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
-	app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetApprovedOrRejectedInquiries)
-	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant) //Display all the Approved apartment
+	app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetAllinquiries) // Display all inquiries
+	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant)                     //Display all the Approved apartment
 	app.Get("/get/wishlist", middleware.AuthMiddleware, tenantscontroller.FetchwishlistForTenant)
 
 	//////////////////// DELETE //////////////////
