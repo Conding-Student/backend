@@ -22,7 +22,7 @@ type UserSearchRequest struct {
 }
 
 // 👤 SearchUsers endpoint
-func SearchUsers(c *fiber.Ctx) error {
+func Apartmentfilteradmin(c *fiber.Ctx) error {
 	// Parse search parameters
 	var req UserSearchRequest
 	if err := c.QueryParser(&req); err != nil {
@@ -35,21 +35,22 @@ func SearchUsers(c *fiber.Ctx) error {
 	// Validate allowed search fields
 	allowedFields := map[string]bool{
 		"uid":            true,
-		"email":          true,
-		"phone_number":   true,
-		"fullname":       true,
+		"property_name":  true,
 		"address":        true,
-		"account_status": true,
-		"user_type":      true,
+		"property_type":  true,
+		"landmarks":      true,
+		"status":         true,
+		"allowed_gender": true,
+		"availability":   true,
 	}
 
 	if !allowedFields[req.SearchField] {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid search field",
 			"allowed_fields": []string{
-				"uid", "email", "phone_number",
-				"fullname", "address",
-				"account_status", "user_type",
+				"uid", "property_name", "property_type",
+				"landmarks", "address",
+				"status", "allowed_gender", "availability",
 			},
 		})
 	}
@@ -65,7 +66,7 @@ func SearchUsers(c *fiber.Ctx) error {
 	searchPattern := "%" + req.SearchTerm + "%"
 
 	// Execute database query
-	var users []model.User
+	var users []model.Apartment
 	result := middleware.DBConn.
 		Where(req.SearchField+" ILIKE ?", searchPattern).
 		Find(&users)

@@ -3,8 +3,10 @@ package controller
 import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // Get pending status
@@ -29,10 +31,12 @@ type VerifyApartmentRequest struct {
 	Status string `json:"status"` // Expected values: "Approved" or "Rejected"
 }
 
-// Verify (Approve/Reject) an Apartment
+// Verify (Approve/Reject) an Apartment with availability and expiration
 func VerifyApartment(c *fiber.Ctx) error {
-	apartmentID := c.Params("id") // Get apartment ID from the URL
-	var req VerifyApartmentRequest
+	apartmentID := c.Params("id")
+	var req struct {
+		Status string `json:"status"`
+	}
 
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -40,7 +44,7 @@ func VerifyApartment(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if the provided status is valid
+	// Validate status input
 	if req.Status != "Approved" && req.Status != "Rejected" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid status. Use 'Approved' or 'Rejected'.",
@@ -48,34 +52,57 @@ func VerifyApartment(c *fiber.Ctx) error {
 	}
 
 	var apartment model.Apartment
-	result := middleware.DBConn.First(&apartment, apartmentID)
-	if result.Error != nil {
+	if err := middleware.DBConn.First(&apartment, apartmentID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Apartment not found",
 		})
 	}
-	// If status is "Rejected", update status in DB
-	if req.Status == "Rejected" {
-		apartment.Status = "Rejected"
-		middleware.DBConn.Save(&apartment)
 
-		// Notify the landlord (assuming a notification system is implemented)
-		return c.JSON(fiber.Map{
-			"message":      "Apartment rejected. Waiting for landlord confirmation to delete.",
-			"apartment_id": apartmentID,
+	// Prepare updates based on approval status
+	updates := make(map[string]interface{})
+	responseMessage := ""
+
+	switch req.Status {
+	case "Approved":
+		expiration := time.Now().Add(14 * 24 * time.Hour)
+		updates = map[string]interface{}{
+			"status":       "Approved",
+			"availability": "Available",
+			"expires_at":   expiration,
+		}
+		responseMessage = "Apartment approved and made available"
+
+	case "Rejected":
+		updates = map[string]interface{}{
 			"status":       "Rejected",
+			"availability": "Not Available",
+			"expires_at":   gorm.Expr("NULL"),
+		}
+		responseMessage = "Apartment rejected and marked as unavailable"
+	}
+
+	// Perform database update
+	if err := middleware.DBConn.Model(&apartment).Updates(updates).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update apartment status",
 		})
 	}
 
-	// Update the status
-	apartment.Status = req.Status
-	middleware.DBConn.Save(&apartment)
-
-	return c.JSON(fiber.Map{
-		"message":      "Apartment status updated successfully",
+	// Prepare response
+	response := fiber.Map{
+		"message":      responseMessage,
 		"apartment_id": apartmentID,
 		"status":       req.Status,
-	})
+	}
+
+	// Add expiration time if approved
+	if req.Status == "Approved" {
+		if exp, ok := updates["expires_at"].(time.Time); ok {
+			response["expires_at"] = exp.Format(time.RFC3339)
+		}
+	}
+
+	return c.JSON(response)
 }
 
 type UpdateApartmentRequest struct {

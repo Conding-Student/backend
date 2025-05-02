@@ -6,9 +6,12 @@ import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 type UpdateMediaRequest struct {
@@ -133,74 +136,143 @@ type UpdateAvailabilityRequest struct {
 func UpdateApartmentAvailability(c *fiber.Ctx) error {
 	fmt.Println("[DEBUG] Starting UpdateApartmentAvailability handler...")
 
-	// Get user claims from JWT
+	// Authentication & Authorization
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)
 	if !ok {
-		fmt.Println("[DEBUG] Missing JWT claims")
+		fmt.Println("[SECURITY] Missing JWT claims")
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Unauthorized: Missing JWT claims",
+			"message": "Unauthorized: Invalid authentication credentials",
 		})
 	}
 
 	uid, ok := userClaims["uid"].(string)
 	if !ok || uid == "" {
-		fmt.Println("[DEBUG] Invalid or missing UID in token claims")
+		fmt.Println("[SECURITY] Invalid UID in token claims")
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Unauthorized: Invalid landlord UID",
+			"message": "Unauthorized: Invalid user identification",
 		})
 	}
 	fmt.Println("[DEBUG] UID extracted:", uid)
 
-	// Get apartment ID from URL parameters
+	// Input Validation
 	apartmentID := c.Params("id")
-	if apartmentID == "" {
-		fmt.Println("[DEBUG] Apartment ID missing in URL params")
+	if apartmentID == "" || !isValidID(apartmentID) {
+		fmt.Println("[VALIDATION] Invalid numeric ID format")
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Apartment ID is required",
+			"message": "Invalid apartment ID format - must be numeric",
 		})
 	}
-	fmt.Println("[DEBUG] Apartment ID extracted:", apartmentID)
 
-	// Parse the request body
 	var req UpdateAvailabilityRequest
 	if err := c.BodyParser(&req); err != nil {
-		fmt.Println("[DEBUG] Error parsing request body:", err.Error())
+		fmt.Println("[VALIDATION] Request parsing error:", err.Error())
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
+			"message": "Invalid request format",
 			"error":   err.Error(),
 		})
 	}
-	fmt.Println("[DEBUG] Availability parsed from body:", req.Availability)
 
-	if req.Availability == "" {
-		fmt.Println("[DEBUG] Availability field is empty")
+	if !isValidAvailability(req.Availability) {
+		fmt.Println("[VALIDATION] Invalid availability value:", req.Availability)
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Availability field is required",
+			"message": "Availability must be either 'Available' or 'Not Available'",
 		})
 	}
 
-	// Check apartment existence and ownership
+	// Business Logic Validation
 	var apartment model.Apartment
-	if err := middleware.DBConn.Where("id = ? AND uid = ?", apartmentID, uid).First(&apartment).Error; err != nil {
-		fmt.Println("[DEBUG] Apartment not found or unauthorized access:", err.Error())
+	if err := middleware.DBConn.
+		Where("id = ? AND uid = ?", apartmentID, uid).
+		First(&apartment).Error; err != nil {
+
+		fmt.Println("[AUTH] Apartment access violation - ID:", apartmentID, "UID:", uid)
 		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"message": "Apartment not found or unauthorized",
+			"message": "Apartment not found or access denied",
 		})
 	}
-	fmt.Println("[DEBUG] Apartment record found:", apartment.ID)
 
-	// Update the apartment availability
-	if err := middleware.DBConn.Model(&apartment).Update("availability", req.Availability).Error; err != nil {
-		fmt.Println("[DEBUG] Error updating apartment availability:", err.Error())
+	if apartment.Status != "Approved" {
+		fmt.Printf("[BUSINESS] Attempt to update unapproved apartment - ID: %s Current Status: %s\n",
+			apartmentID, apartment.Status)
+		return c.Status(http.StatusForbidden).JSON(fiber.Map{
+			"message": "Cannot update availability for unapproved listings",
+			"detail":  "The property must be approved by administrators first",
+		})
+	}
+
+	// Prepare Update Data
+	updates := map[string]interface{}{
+		"availability": req.Availability,
+		"updated_at":   time.Now(), // Add update timestamp
+	}
+
+	// Expiration Logic
+	switch req.Availability {
+	case "Available":
+		if apartment.ExpiresAt != nil && apartment.ExpiresAt.After(time.Now()) {
+			fmt.Printf("[BUSINESS] Keeping existing expiration: %v\n", apartment.ExpiresAt)
+			updates["expires_at"] = apartment.ExpiresAt
+		} else {
+			newExpiration := time.Now().Add(14 * 24 * time.Hour)
+			updates["expires_at"] = newExpiration
+			fmt.Printf("[DEBUG] New expiration set: %v\n", newExpiration)
+		}
+	case "Not Available":
+		updates["expires_at"] = gorm.Expr("NULL")
+		fmt.Println("[DEBUG] Clearing expiration time")
+	}
+
+	// Database Operation
+	if err := middleware.DBConn.
+		Model(&model.Apartment{}).
+		Where("id = ? AND status = 'Approved'", apartmentID). // Additional safety check
+		Updates(updates).Error; err != nil {
+
+		fmt.Println("[DATABASE] Update error:", err.Error())
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to update availability",
-			"error":   err.Error(),
+			"message": "Failed to update property status",
+			"error":   "Database operation failed",
 		})
 	}
 
-	fmt.Println("[DEBUG] Apartment availability updated successfully!")
-
+	fmt.Println("[SUCCESS] Availability updated for apartment ID:", apartmentID)
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Apartment availability updated successfully",
+		"message":    "Property availability updated",
+		"expires_at": updates["expires_at"],
 	})
+}
+
+// Helper functions
+func isValidID(id string) bool {
+	_, err := strconv.Atoi(id)
+	return err == nil
+}
+
+func isValidAvailability(a string) bool {
+	return a == "Available" || a == "Not Available"
+}
+
+func ManageApartmentExpirations() {
+	ticker := time.NewTicker(1 * time.Minute) // Check every minute instead of hourly
+	defer ticker.Stop()
+
+	for {
+		<-ticker.C
+		currentTime := time.Now()
+
+		// Directly update using a single query
+		result := middleware.DBConn.Model(&model.Apartment{}).
+			Where("expires_at < ? AND availability = ?", currentTime, "Available").
+			Updates(map[string]interface{}{
+				"availability": "Not Available",
+				"expires_at":   gorm.Expr("NULL"),
+			})
+
+		if result.Error != nil {
+			fmt.Printf("Error updating expired apartments: %v\n", result.Error)
+		} else if result.RowsAffected > 0 {
+			fmt.Printf("[%s] Expired %d apartments\n",
+				currentTime.Format(time.RFC3339), result.RowsAffected)
+		}
+	}
 }
