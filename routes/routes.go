@@ -30,7 +30,8 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("RentXpert! go, go, go lang!")
 	})
-	// go tenantscontroller.DeleteExpiredInquiries()
+	go tenantscontroller.DeleteExpiredInquiries()
+	go landlordcontroller.ManageApartmentExpirations()
 
 	//////////////////// Landlord //////////////////
 
@@ -82,6 +83,7 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/admin/apartments/details", admincontroller3.GetFilteredApartments)                              //Get complete apartment details along with other data and can be filtered
 	app.Get("/apartments/pending", admincontroller.GetPendingApartments)                                      // Fetch unverified apartments
 	app.Get("/user/pending", admincontroller.GetPendingUsers)                                                 // Fetch unverified users
+	app.Get("/admin/apartmentfilter", admincontroller2.Apartmentfilteradmin)
 
 	//////////////////// DELETE //////////////////
 	app.Delete("/admin/apartment/delete/:id", admincontroller3.DeleteApartmentByID) // Delete speific apartment

@@ -93,7 +93,7 @@ func CreateApartment(c *fiber.Ctx) error {
 		Latitude:       req.Latitude,
 		Longitude:      req.Longitude,
 		UserID:         uid,
-		Availability:   "Available",
+		Availability:   "Not Available",
 		Allowed_Gender: req.AllowedGender,
 	}
 

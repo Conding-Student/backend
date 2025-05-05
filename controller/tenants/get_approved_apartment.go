@@ -4,11 +4,12 @@ import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
 	"sort"
+	"strconv"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-// Function to fetch approved apartments for tenants
 func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	type ApartmentDetails struct {
 		model.Apartment
@@ -27,8 +28,29 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		InquiriesCount   int64    `json:"inquiries_count"`
 	}
 
+	// Get query parameters for filtering
+	minPrice := c.Query("min_price")
+	maxPrice := c.Query("max_price")
+	gender := c.Query("gender")
+
+	// Base query with indexes utilization
+	query := middleware.DBConn.
+		Where("status = ?", "Approved").
+		Where("availability = ?", "Available").
+		Order("created_at DESC")
+
+	// Price filter
+	if minPrice != "" && maxPrice != "" {
+		query = query.Where("rent_price BETWEEN ? AND ?", minPrice, maxPrice)
+	}
+
+	// Gender filter
+	if gender != "" {
+		query = query.Where("allowed_gender = ?", gender)
+	}
+
 	var apartments []model.Apartment
-	if err := middleware.DBConn.Where("status = ?", "Approved").Find(&apartments).Error; err != nil {
+	if err := query.Find(&apartments).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch approved apartments",
 			"error":   err.Error(),
@@ -38,52 +60,85 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	var results []ApartmentDetails
 
 	for _, apt := range apartments {
+		// Skip apartments that became unavailable after expiration check
+		if apt.Availability != "Available" {
+			continue
+		}
+
 		var landlord model.User
-		if err := middleware.DBConn.Where("uid = ?", apt.Uid).First(&landlord).Error; err != nil {
+		if err := middleware.DBConn.
+			Where("uid = ?", apt.Uid).
+			First(&landlord).Error; err != nil {
 			continue // Skip if landlord not found
 		}
 
-		// Fetch images
-		var images []model.ApartmentImage
-		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&images)
-		var imageUrls []string
-		for _, img := range images {
-			imageUrls = append(imageUrls, img.ImageURL)
+		// Concurrently fetch media and details
+		var (
+			images       []model.ApartmentImage
+			videos       []model.ApartmentVideo
+			amenities    []model.Amenity
+			houseRules   []model.HouseRule
+			inquiryCount int64
+		)
+
+		wg := &sync.WaitGroup{}
+		wg.Add(5)
+
+		go func() {
+			middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&images)
+			wg.Done()
+		}()
+
+		go func() {
+			middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
+			wg.Done()
+		}()
+
+		go func() {
+			middleware.DBConn.
+				Joins("JOIN apartment_amenities ON amenities.id = apartment_amenities.amenity_id").
+				Where("apartment_amenities.apartment_id = ?", apt.ID).
+				Find(&amenities)
+			wg.Done()
+		}()
+
+		go func() {
+			middleware.DBConn.
+				Joins("JOIN apartment_house_rules ON house_rules.id = apartment_house_rules.house_rule_id").
+				Where("apartment_house_rules.apartment_id = ?", apt.ID).
+				Find(&houseRules)
+			wg.Done()
+		}()
+
+		go func() {
+			middleware.DBConn.Model(&model.Inquiry{}).
+				Where("apartment_id = ? AND status IN (?, ?)", apt.ID, "Accepted", "Pending").
+				Count(&inquiryCount)
+			wg.Done()
+		}()
+
+		wg.Wait()
+
+		// Convert to simple arrays
+		imageUrls := make([]string, len(images))
+		for i, img := range images {
+			imageUrls[i] = img.ImageURL
 		}
 
-		// Fetch videos
-		var videos []model.ApartmentVideo
-		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
-		var videoUrls []string
-		for _, vid := range videos {
-			videoUrls = append(videoUrls, vid.VideoURL)
+		videoUrls := make([]string, len(videos))
+		for i, vid := range videos {
+			videoUrls[i] = vid.VideoURL
 		}
 
-		// Fetch amenities
-		var amenities []model.Amenity
-		middleware.DBConn.
-			Joins("JOIN apartment_amenities ON amenities.id = apartment_amenities.amenity_id").
-			Where("apartment_amenities.apartment_id = ?", apt.ID).Find(&amenities)
-		var amenityNames []string
-		for _, a := range amenities {
-			amenityNames = append(amenityNames, a.Name)
+		amenityNames := make([]string, len(amenities))
+		for i, a := range amenities {
+			amenityNames[i] = a.Name
 		}
 
-		// Fetch house rules
-		var houseRules []model.HouseRule
-		middleware.DBConn.
-			Joins("JOIN apartment_house_rules ON house_rules.id = apartment_house_rules.house_rule_id").
-			Where("apartment_house_rules.apartment_id = ?", apt.ID).Find(&houseRules)
-		var ruleNames []string
-		for _, r := range houseRules {
-			ruleNames = append(ruleNames, r.Rule)
+		ruleNames := make([]string, len(houseRules))
+		for i, r := range houseRules {
+			ruleNames[i] = r.Rule
 		}
-
-		// Get inquiry count
-		var inquiryCount int64
-		var Accepted = "Accepted"
-		var Pending = "Pending"
-		middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ? AND (status = ? OR status = ?)", apt.ID, Accepted, Pending).Count(&inquiryCount)
 
 		results = append(results, ApartmentDetails{
 			Apartment:        apt,
@@ -103,12 +158,27 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		})
 	}
 
-	// Sort apartments by InquiriesCount in descending order
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].InquiriesCount > results[j].InquiriesCount
-	})
+	// Sort by popularity (inquiries count) if requested
+	if c.Query("sort") == "popularity" {
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].InquiriesCount > results[j].InquiriesCount
+		})
+	}
+
+	// Pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
+	start := (page - 1) * pageSize
+	end := start + pageSize
+
+	if end > len(results) {
+		end = len(results)
+	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"apartments": results,
+		"total":      len(results),
+		"page":       page,
+		"page_size":  pageSize,
+		"apartments": results[start:end],
 	})
 }
