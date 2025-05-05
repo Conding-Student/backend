@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+
 func AddToWishlist(c *fiber.Ctx) error {
 	uid, err := GetUIDFromToken(c)
 	if err != nil {

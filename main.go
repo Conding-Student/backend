@@ -47,7 +47,6 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName: middleware.GetEnv("PROJ_NAME"),
 	})
-
 	// Example usage of the JWT secret key
 	jwtSecret := os.Getenv("JWT_SECRET")
 	log.Println("Loaded JWT Secret:", jwtSecret) // 🔍 Debugging: REMOVE in production

@@ -58,8 +58,8 @@ func UpdateInquiryStatusByLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// ✅ Update the inquiry status
-	inquiry.Status = req.Status
+	// // ✅ Update the inquiry status
+	// inquiry.Status = req.Status
 	if err := middleware.DBConn.Save(&inquiry).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Database error while updating inquiry status",

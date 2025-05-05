@@ -76,19 +76,18 @@ type ApartmentVideo struct {
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
-// Inquiry model (With automatic expiration & notification)
 type Inquiry struct {
-	ID          uint      `gorm:"primaryKey"`
-	UID         string    `gorm:"not null"`
-	ApartmentID uint      `gorm:"not null;index;constraint:OnDelete:CASCADE"`
-	Message     string    `gorm:"not null"`
-	Status      string    `gorm:"not null;default:'Pending'"`
-	CreatedAt   time.Time `json:"created_at"`
-	ExpiresAt   time.Time `gorm:"not null"`
-	Notified    bool      `gorm:"not null;default:false"`
-	User        User      `gorm:"foreignKey:UID;references:Uid"`
-	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
+    ID             uint       `gorm:"primaryKey"`
+    TenantUID      string     `gorm:"not null"`
+    LandlordUID    string     `gorm:"not null"`
+    PropertyID     uint       `gorm:"not null"`
+    InitialMessage string     `gorm:"null"`
+    PreferredVisit *time.Time // Optional
+    CreatedAt      time.Time  `gorm:"autoCreateTime"`
+    ExpiresAt      time.Time  `gorm: "null"` // Automatic expiration
 }
+
+
 
 // Amenity model
 type Amenity struct {

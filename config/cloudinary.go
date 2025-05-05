@@ -14,7 +14,7 @@ var cld *cloudinary.Cloudinary
 
 func InitCloudinary() {
 	var err error
-	cld, err = cloudinary.NewFromParams("rentxpert", "922588228586574", "NK4iVkSsSDlYiEE2WmxWH4L9fKc")
+	cld, err = cloudinary.NewFromParams("rentxpertii", "291258595623755", "Z3g3hGx0sz7mXaeDLhoigQcY-sU")
 	if err != nil {
 		log.Fatal("Failed to initialize Cloudinary: ", err)
 	}

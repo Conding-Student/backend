@@ -30,7 +30,7 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("RentXpert! go, go, go lang!")
 	})
-	go tenantscontroller.DeleteExpiredInquiries()
+	// go tenantscontroller.DeleteExpiredInquiries()
 
 	//////////////////// Landlord //////////////////
 
@@ -110,12 +110,12 @@ func AppRoutes(app *fiber.App) {
 
 	//////////////////// POST //////////////////
 	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)
-	app.Post("/tenant/delete-inquiry", middleware.AuthMiddleware, tenantscontroller.DeleteInquiryAfterViewingNotification)
+	// app.Post("/tenant/delete-inquiry", middleware.AuthMiddleware, tenantscontroller.DeleteInquiryAfterViewingNotification)
 	app.Post("/add/wishlist", middleware.AuthMiddleware, tenantscontroller.AddToWishlist)
 
 	//////////////////// GET //////////////////
-	app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
-	app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetAllinquiries) // Display all inquiries
+	// app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
+	// app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetAllinquiries) // Display all inquiries
 	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant)                     //Display all the Approved apartment
 	app.Get("/get/wishlist", middleware.AuthMiddleware, tenantscontroller.FetchwishlistForTenant)
 
@@ -125,5 +125,9 @@ func AppRoutes(app *fiber.App) {
 	//////////////////// Tenant //////////////////
 
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
+
+
+
+
 
 }

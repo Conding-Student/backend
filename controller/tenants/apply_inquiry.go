@@ -1,20 +1,66 @@
+// Controller
 package controller
 
 import (
 	"intern_template_v1/middleware"
-	//"intern_template_v1/model"
+	"intern_template_v1/model"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Struct to capture incoming inquiry data from the request body
 type CreateInquiryRequest struct {
-	ApartmentID int    `json:"apartment_id"`
-	Message     string `json:"message"`
+    PropertyID     uint   `json:"property_id" validate:"required"`
+    Message        string `json:"message" validate:"required,min=10"`
+    PreferredVisit string `json:"preferred_visit,omitempty"` // Optional ISO8601
 }
 
+func CreateInquiry(c *fiber.Ctx) error {
+    // 1. Authentication
+    tenantUID, err := GetUIDFromToken(c)
+
+    if err != nil {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "error": "Authentication required",
+        })
+    }
+
+    // 2. Request Validation
+    var req CreateInquiryRequest
+    if err := c.BodyParser(&req); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "Invalid request format",
+        })
+    }
+
+    // 3. Duplicate Check
+    if exists, err := checkDuplicateInquiry(tenantUID, req.PropertyID); err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "System error",
+        })
+    } else if exists {
+        return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+            "error": "Existing inquiry for this property",
+        })
+    }
+
+    // 4. Create Inquiry
+    inquiry, err := createInquiryRecord(tenantUID, req)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Failed to create inquiry",
+        })
+    }
+
+    return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+        "data": fiber.Map{
+            "id":           inquiry.ID,
+            "property_id":  inquiry.PropertyID,
+            "expires_at":   inquiry.ExpiresAt.Format(time.RFC3339),
+        },
+    })
+}
 // Function to extract the UID from the JWT token
 func GetUIDFromToken(c *fiber.Ctx) (string, error) {
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)
@@ -30,59 +76,38 @@ func GetUIDFromToken(c *fiber.Ctx) (string, error) {
 	return uid, nil
 }
 
-func CreateInquiry(c *fiber.Ctx) error {
-	// ✅ Extract UID from JWT Token
-	uid, err := GetUIDFromToken(c)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Unauthorized: Missing or invalid JWT",
-		})
-	}
+func checkDuplicateInquiry(tenantUID string, propertyID uint) (bool, error) {
+    var count int64
+    err := middleware.DBConn.Model(&model.Inquiry{}).
+        Where("tenant_uid = ? AND property_id = ?", tenantUID, propertyID).
+        Count(&count).Error
+    return count > 0, err
+}
 
-	// ✅ Parse request body
-	var req CreateInquiryRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request format",
-		})
-	}
+func createInquiryRecord(tenantUID string, req CreateInquiryRequest) (*model.Inquiry, error) {
+    // Get landlord UID from property
+    var property model.Apartment
+    if err := middleware.DBConn.First(&property, req.PropertyID).Error; err != nil {
+        return nil, err
+    }
 
-	// ✅ Check if the tenant already submitted an inquiry for the same apartment
-	var count int64
-	err = middleware.DBConn.
-		Table("inquiries").
-		Where("uid = ? AND apartment_id = ?", uid, req.ApartmentID).
-		Count(&count).Error
+    // Parse optional visit time
+    var visitTime *time.Time
+    if req.PreferredVisit != "" {
+        if t, err := time.Parse(time.RFC3339, req.PreferredVisit); err == nil {
+            visitTime = &t
+        }
+    }
 
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Database error during duplicate check",
-			"error":   err.Error(),
-		})
-	}
+    inquiry := &model.Inquiry{
+        TenantUID:      tenantUID,
+        LandlordUID:    property.Uid,
+        PropertyID:     req.PropertyID,
+        InitialMessage: req.Message,
+        PreferredVisit: visitTime,
+        CreatedAt:      time.Now(),
+        ExpiresAt:      time.Now().Add(7 * 24 * time.Hour), // 1 week expiration
+    }
 
-	if count > 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "You’ve already submitted an inquiry for this apartment.",
-		})
-	}
-
-	// ✅ Create inquiry
-	currentTime := time.Now()
-	expirationTime := currentTime.Add(7 * 24 * time.Hour)
-
-	query := `INSERT INTO inquiries (uid, apartment_id, message, status, created_at, expires_at, notified) 
-	          VALUES (?, ?, ?, 'Pending', ?, ?, false)`
-
-	if err := middleware.DBConn.Exec(query, uid, req.ApartmentID, req.Message, currentTime, expirationTime).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Database error: Unable to create inquiry",
-			"error":   err.Error(),
-		})
-	}
-
-	// ✅ Return success response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Inquiry created successfully",
-	})
+    return inquiry, middleware.DBConn.Create(inquiry).Error
 }
