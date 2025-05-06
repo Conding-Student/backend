@@ -3,6 +3,7 @@ package routes
 import (
 	//"intern_template_v1/controller"
 	// "intern_template_v1/controller"
+	"intern_template_v1/config"
 	admincontroller "intern_template_v1/controller/admin"
 	admincontroller3 "intern_template_v1/controller/admin/apartment_management"
 	admincontroller4 "intern_template_v1/controller/admin/chart"
@@ -129,6 +130,33 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
 
 
+
+		app.Post("/api/send-notification", func(c *fiber.Ctx) error {
+			type RequestBody struct {
+				FcmToken       string `json:"fcmToken"`
+				Title          string `json:"title"`
+				Body           string `json:"body"`
+				ConversationId string `json:"conversationId"`
+			}
+	
+			var req RequestBody
+			if err := c.BodyParser(&req); err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Invalid request body",
+				})
+			}
+	
+			err := config.SendPushNotification(req.FcmToken, req.Title, req.Body, req.ConversationId)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": err.Error(),
+				})
+			}
+	
+			return c.JSON(fiber.Map{
+				"message": "Push notification sent successfully",
+			})
+		})
 
 
 

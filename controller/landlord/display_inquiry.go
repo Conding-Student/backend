@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"intern_template_v1/middleware"
+	"intern_template_v1/model"
 	"intern_template_v1/model/response"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,7 +24,23 @@ func GetUIDFromToken(c *fiber.Ctx) (string, error) {
 	return uid, nil
 }
 
-// ✅ Fetch inquiries with tenant full name and apartment name
+// Response struct for inquiries with tenant and property info
+type InquiryResponse struct {
+	ID             uint       `json:"id"`
+	TenantUID      string     `json:"tenant_uid"`
+	TenantName     string     `json:"tenant_name"`
+	TenantEmail    string     `json:"tenant_email"`
+	TenantPhotoURL string     `json:"tenant_photo_url"`
+	PropertyID     uint       `json:"property_id"`
+	PropertyName   string     `json:"property_name"`
+	InitialMessage string     `json:"initial_message"`
+	PreferredVisit *time.Time `json:"preferred_visit,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	ExpiresAt      time.Time  `json:"expires_at"`
+	Status         string     `json:"status"`
+}
+
+// ✅ Fetch inquiries with tenant full name and property name
 func FetchInquiriesByLandlord(c *fiber.Ctx) error {
 	// Get landlord UID from JWT token
 	uid, err := GetUIDFromToken(c)
@@ -35,33 +52,34 @@ func FetchInquiriesByLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// Struct to hold inquiry + tenant and apartment info
-	var inquiries []struct {
-		ID            uint      `json:"id"`
-		UID           string    `json:"uid"`
-		ApartmentID   uint      `json:"apartment_id"`
-		ApartmentName string    `json:"apartment_name"`
-		Message       string    `json:"message"`
-		Status        string    `json:"status"`
-		CreatedAt     time.Time `json:"created_at"`
-		ExpiresAt     time.Time `json:"expires_at"`
-		Notified      bool      `json:"notified"`
-		TenantEmail   string    `json:"tenant_email"`
-		FullName      string    `json:"full_name"`
-	}
+	var inquiries []InquiryResponse
 
-	// Query to join users and apartments
-	err = middleware.DBConn.Table("inquiries").
-		Select("inquiries.id, inquiries.uid, inquiries.apartment_id, apartments.property_name AS apartment_name, inquiries.message, inquiries.status, inquiries.created_at, inquiries.expires_at, inquiries.notified, users.email AS tenant_email, users.fullname AS full_name").
-		Joins("JOIN users ON users.uid = inquiries.uid").
-		Joins("JOIN apartments ON apartments.id = inquiries.apartment_id").
-		Where("apartments.uid = ?", uid).
-		Find(&inquiries).Error
+	// Query to join users and properties
+	err = middleware.DBConn.Model(&model.Inquiry{}).
+	Select(`
+	inquiries.id,
+	inquiries.tenant_uid,
+	users.fullname AS tenant_name,
+	users.email AS tenant_email,
+	users.photo_url AS tenant_photo_url,
+	inquiries.property_id,
+	apartments.property_name,
+	inquiries.initial_message,
+	inquiries.preferred_visit,
+	inquiries.created_at,
+	inquiries.expires_at
+`).
+Joins("JOIN users ON users.uid = inquiries.tenant_uid").
+Joins("JOIN apartments ON apartments.id = inquiries.property_id").
+Where("apartments.uid = ?", uid).
+Order("inquiries.created_at DESC").
+Find(&inquiries).Error
+
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
 			RetCode: "500",
-			Message: "Failed to fetch inquiries",
+			Message: "Failed to fetch inquiries: " + err.Error(),
 			Data:    nil,
 		})
 	}

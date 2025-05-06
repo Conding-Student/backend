@@ -112,7 +112,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 
 		go func() {
 			middleware.DBConn.Model(&model.Inquiry{}).
-				Where("apartment_id = ? AND status IN (?, ?)", apt.ID, "Accepted", "Pending").
+				Where("property_id = ?", apt.ID).
 				Count(&inquiryCount)
 			wg.Done()
 		}()
