@@ -8,6 +8,8 @@ import (
 	admincontroller3 "intern_template_v1/controller/admin/apartment_management"
 	admincontroller4 "intern_template_v1/controller/admin/chart"
 	admincontroller2 "intern_template_v1/controller/admin/user_management"
+	"log"
+	"time"
 
 	authcontroller "intern_template_v1/controller/auth"
 
@@ -131,33 +133,97 @@ func AppRoutes(app *fiber.App) {
 
 
 
-		app.Post("/api/send-notification", func(c *fiber.Ctx) error {
-			type RequestBody struct {
-				FcmToken       string `json:"fcmToken"`
-				Title          string `json:"title"`
-				Body           string `json:"body"`
-				ConversationId string `json:"conversationId"`
-			}
+	app.Post("/api/send-notification", func(c *fiber.Ctx) error {
+		// Enhanced request structure with sender ID
+		type RequestBody struct {
+			FcmToken       string `json:"fcmToken"`
+			Title          string `json:"title"`
+			Body           string `json:"body"`
+			ConversationId string `json:"conversationId"`
+			SenderId       string `json:"senderId"` // Added sender tracking
+			Debug          bool   `json:"debug"`    // Optional debug flag
+		}
 	
-			var req RequestBody
-			if err := c.BodyParser(&req); err != nil {
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Invalid request body",
-				})
-			}
-	
-			err := config.SendPushNotification(req.FcmToken, req.Title, req.Body, req.ConversationId)
-			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": err.Error(),
-				})
-			}
-	
-			return c.JSON(fiber.Map{
-				"message": "Push notification sent successfully",
+		var req RequestBody
+		if err := c.BodyParser(&req); err != nil {
+			log.Printf("[Notification] Invalid request: %v", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Invalid request body",
+				"details": err.Error(),
 			})
-		})
+		}
+	
+		// Validate required fields
+		if req.FcmToken == "" || req.ConversationId == "" {
+			log.Printf("[Notification] Missing required fields. Token: %t, ConvID: %t", 
+				req.FcmToken != "", req.ConversationId != "")
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Missing required fields (fcmToken and conversationId are required)",
+			})
+		}
+	
+		// Set default title if empty
+		if req.Title == "" {
+			req.Title = "New message"
+		}
+	
+		// Log the attempt
+		log.Printf("[Notification] Sending to %s (conv: %s)", 
+			maskToken(req.FcmToken), req.ConversationId)
+	
+		// Send notification with enhanced tracking
+		err := config.SendPushNotification(
+			req.FcmToken,
+			req.Title,
+			req.Body,
+			req.ConversationId,
+			req.SenderId,
+		)
+	
+		if err != nil {
+			log.Printf("[Notification] Failed to send: %v", err)
+			
+			// Enhanced error response
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":     "Failed to send notification",
+				"details":   err.Error(),
+				"debugInfo": fiber.Map{
+					"conversationId": req.ConversationId,
+					"senderId":       req.SenderId,
+					"attemptedAt":    time.Now().Format(time.RFC3339),
+				},
+			})
+		}
+	
+		// Success response with delivery info
+		response := fiber.Map{
+			"status":  "success",
+			"message": "Notification sent to FCM",
+			"data": fiber.Map{
+				"conversationId": req.ConversationId,
+				"timestamp":      time.Now().Format(time.RFC3339),
+			},
+		}
+	
+		// Add debug info if requested
+		if req.Debug {
+			response["debug"] = fiber.Map{
+				"fcmToken": maskToken(req.FcmToken),
+				"senderId": req.SenderId,
+			}
+		}
+	
+		log.Printf("[Notification] Successfully sent to conversation %s", req.ConversationId)
+		return c.JSON(response)
+	})
+	
+	}
+	
+	// Helper to mask sensitive token in logs
+	func maskToken(token string) string {
+		if len(token) < 8 {
+			return "****"
+		}
+		return token[:4] + "..." + token[len(token)-4:]
+	}
 
-
-
-}
