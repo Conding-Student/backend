@@ -10,10 +10,18 @@ type DeleteApartmentRequest struct {
 }
 
 type Admins struct {
+	ID        uint         `gorm:"primaryKey"`
+	Email     string       `gorm:"unique;not null"`
+	Password  string       `gorm:"not null"`
+	CreatedAt time.Time    `json:"created_at"`
+	Tokens    []AdminToken `gorm:"foreignKey:AdminID;constraint:OnDelete:CASCADE"`
+}
+
+type AdminToken struct {
 	ID        uint      `gorm:"primaryKey"`
-	Email     string    `gorm:"unique;not null"`
-	Password  string    `gorm:"not null"`
-	CreatedAt time.Time `json:"created_at"`
+	AdminID   uint      `gorm:"not null;index"` // Foreign key to Admins.ID
+	Token     string    `gorm:"not null"`
+	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
 type User struct {

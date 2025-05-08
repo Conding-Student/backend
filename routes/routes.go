@@ -45,6 +45,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)                        //insert application for landlord apartment
 	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
 	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
+	app.Post("/admin/login", admincontroller.LoginHandler)
 
 	/////////////////// GET ////////////////////////
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord)           //Property get by landlord
