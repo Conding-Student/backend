@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -184,7 +185,7 @@ func logAndUpdate(ctx context.Context, logRef *firestore.DocumentRef, status, er
 	if err != nil {
 		log.Printf("Failed to update failed log entry: %v\n", err)
 	}
-	return fmt.Errorf(errorMsg)
+	return errors.New(errorMsg)
 }
 
 

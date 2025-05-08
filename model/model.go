@@ -84,9 +84,9 @@ type Inquiry struct {
     LandlordUID    string     `gorm:"not null"`
     PropertyID     uint       `gorm:"not null"`
     InitialMessage string     `gorm:"null"`
-    PreferredVisit *time.Time // Optional
+    PreferredVisit *time.Time 
     CreatedAt      time.Time  `gorm:"autoCreateTime"`
-    ExpiresAt      time.Time  `gorm: "null"` // Automatic expiration
+	ExpiresAt      time.Time  `gorm:"null"` 
 }
 
 
