@@ -218,6 +218,28 @@ func extractReceiverIdFromToken(fcmToken string) (string, error) {
     return userId, nil
 }
 
+// // TrackNotificationOpenHandler handles the POST request to mark a notification as opened.
+// func TrackNotificationOpenHandler(c *fiber.Ctx) error {
+// 	logId := c.Params("logId")
+// 	if logId == "" {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "logId is required",
+// 		})
+// 	}
+
+// 	err := TrackNotificationOpen(logId)
+// 	if err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to track notification open",
+// 			"detail": err.Error(),
+// 		})
+// 	}
+
+// 	return c.JSON(fiber.Map{
+// 		"message": "Notification marked as opened",
+// 	})
+// }
+
 // Call this when a notification is opened in Flutter
 func TrackNotificationOpen(logId string) error {
 	ctx := context.Background()

@@ -330,7 +330,7 @@ func SearchApartments(c *fiber.Ctx) error {
 
 	searchPattern := "%" + req.SearchTerm + "%"
 	var apartments []model.Apartment
-	if err := middleware.DBConn.Where("address ILIKE ?", searchPattern).Find(&apartments).Error; err != nil {
+	if err := middleware.DBConn.Where("location_link ILIKE ?", searchPattern).Find(&apartments).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Database error",
 			"error":   err.Error(),

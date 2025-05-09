@@ -12,6 +12,8 @@ require (
 	gorm.io/gorm v1.25.12
 )
 
+require github.com/gofiber/utils v0.0.10 // indirect
+
 require (
 	cel.dev/expr v0.19.2 // indirect
 	cloud.google.com/go v0.118.3 // indirect
@@ -67,6 +69,7 @@ require (
 )
 
 require (
+	github.com/gofiber/fiber v1.14.6
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect

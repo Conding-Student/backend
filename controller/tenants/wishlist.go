@@ -16,6 +16,18 @@ func AddToWishlist(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
+	// 🔐 Fetch the user's role
+	var user model.User // adjust model name as needed
+	if err := middleware.DBConn.First(&user, "uid = ?", uid).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// ❌ Deny if user is a landlord
+	if user.UserType == "Landlord" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Landlords cannot add to wishlist"})
+	}
+
+	// 📥 Parse request
 	type Request struct {
 		ApartmentID uint `json:"apartment_id"`
 	}
@@ -24,13 +36,13 @@ func AddToWishlist(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	// Check if already exists
+	// 🔍 Check if already exists
 	var existing model.Wishlist
 	if err := middleware.DBConn.Where("uid = ? AND apartment_id = ?", uid, body.ApartmentID).First(&existing).Error; err == nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "Apartment already in wishlist"})
 	}
 
-	// Add to wishlist
+	// ✅ Add to wishlist
 	wishlist := model.Wishlist{
 		UID:         uid,
 		ApartmentID: body.ApartmentID,
@@ -42,6 +54,7 @@ func AddToWishlist(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Apartment added to wishlist"})
 }
+
 
 func RemoveFromWishlist(c *fiber.Ctx) error {
 	log.Println("RemoveFromWishlist handler triggered") // Check if this is logged
@@ -150,7 +163,7 @@ func FetchwishlistForTenant(c *fiber.Ctx) error {
 
 		// Fetch the number of inquiries for the apartment
 		var inquiryCount int64
-		if err := middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ?", apartment.ID).Count(&inquiryCount).Error; err != nil {
+		if err := middleware.DBConn.Model(&model.Inquiry{}).Where("property_id = ?", apartment.ID).Count(&inquiryCount).Error; err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Database error: Unable to count inquiries",
 				"error":   err.Error(),

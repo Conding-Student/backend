@@ -8,6 +8,7 @@ import (
 	admincontroller3 "intern_template_v1/controller/admin/apartment_management"
 	admincontroller4 "intern_template_v1/controller/admin/chart"
 	admincontroller2 "intern_template_v1/controller/admin/user_management"
+	"intern_template_v1/handlers"
 	"log"
 	"time"
 
@@ -216,6 +217,8 @@ func AppRoutes(app *fiber.App) {
 		log.Printf("[Notification] Successfully sent to conversation %s", req.ConversationId)
 		return c.JSON(response)
 	})
+
+	app.Post("/api/track-open/:logId", handlers.TrackNotificationOpenHandler)
 	
 	}
 	
