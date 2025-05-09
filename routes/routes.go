@@ -77,6 +77,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/admin/login", admincontroller.LoginHandler)     // login admin //password: yourSecurePassword123
 
 	//////////////////// GET //////////////////
+	app.Get("/adminuserinfo/search", admincontroller2.GetFilteredUserDetailspart2)
 	app.Get("/api/stats/users-by-year", admincontroller4.GetUserStatsByYear)                            // chart per year
 	app.Get("/display/users", admincontroller2.GetFilteredUserDetails)                                  // Fetch all users can be filtered through name=John,accountname=artem&user_type=Landlord                                //# Search by fullname GET /users/search?field=fullname&search_term=Artem# Search by email	GET /users/search?field=email&search_term=example.com # Search by phone number GET /users/search?field=phone_number&search_term=+12345
 	app.Get("/admin/count/:user_type", admincontroller2.CountUsersByType)                               //displaying number of users by usertype
@@ -122,7 +123,7 @@ func AppRoutes(app *fiber.App) {
 	//////////////////// GET //////////////////
 	// app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
 	// app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetAllinquiries) // Display all inquiries
-	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant)                     //Display all the Approved apartment
+	app.Get("/api/apartments/Approved", tenantscontroller.FetchApprovedApartmentsForTenant) //Display all the Approved apartment
 	app.Get("/get/wishlist", middleware.AuthMiddleware, tenantscontroller.FetchwishlistForTenant)
 
 	//////////////////// DELETE //////////////////
@@ -131,8 +132,6 @@ func AppRoutes(app *fiber.App) {
 	//////////////////// Tenant //////////////////
 
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
-
-
 
 	app.Post("/api/send-notification", func(c *fiber.Ctx) error {
 		// Enhanced request structure with sender ID
@@ -144,7 +143,7 @@ func AppRoutes(app *fiber.App) {
 			SenderId       string `json:"senderId"` // Added sender tracking
 			Debug          bool   `json:"debug"`    // Optional debug flag
 		}
-	
+
 		var req RequestBody
 		if err := c.BodyParser(&req); err != nil {
 			log.Printf("[Notification] Invalid request: %v", err)
@@ -153,25 +152,25 @@ func AppRoutes(app *fiber.App) {
 				"details": err.Error(),
 			})
 		}
-	
+
 		// Validate required fields
 		if req.FcmToken == "" || req.ConversationId == "" {
-			log.Printf("[Notification] Missing required fields. Token: %t, ConvID: %t", 
+			log.Printf("[Notification] Missing required fields. Token: %t, ConvID: %t",
 				req.FcmToken != "", req.ConversationId != "")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Missing required fields (fcmToken and conversationId are required)",
 			})
 		}
-	
+
 		// Set default title if empty
 		if req.Title == "" {
 			req.Title = "New message"
 		}
-	
+
 		// Log the attempt
-		log.Printf("[Notification] Sending to %s (conv: %s)", 
+		log.Printf("[Notification] Sending to %s (conv: %s)",
 			maskToken(req.FcmToken), req.ConversationId)
-	
+
 		// Send notification with enhanced tracking
 		err := config.SendPushNotification(
 			req.FcmToken,
@@ -180,14 +179,14 @@ func AppRoutes(app *fiber.App) {
 			req.ConversationId,
 			req.SenderId,
 		)
-	
+
 		if err != nil {
 			log.Printf("[Notification] Failed to send: %v", err)
-			
+
 			// Enhanced error response
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":     "Failed to send notification",
-				"details":   err.Error(),
+				"error":   "Failed to send notification",
+				"details": err.Error(),
 				"debugInfo": fiber.Map{
 					"conversationId": req.ConversationId,
 					"senderId":       req.SenderId,
@@ -195,7 +194,7 @@ func AppRoutes(app *fiber.App) {
 				},
 			})
 		}
-	
+
 		// Success response with delivery info
 		response := fiber.Map{
 			"status":  "success",
@@ -205,7 +204,7 @@ func AppRoutes(app *fiber.App) {
 				"timestamp":      time.Now().Format(time.RFC3339),
 			},
 		}
-	
+
 		// Add debug info if requested
 		if req.Debug {
 			response["debug"] = fiber.Map{
@@ -213,7 +212,7 @@ func AppRoutes(app *fiber.App) {
 				"senderId": req.SenderId,
 			}
 		}
-	
+
 		log.Printf("[Notification] Successfully sent to conversation %s", req.ConversationId)
 		return c.JSON(response)
 	})
