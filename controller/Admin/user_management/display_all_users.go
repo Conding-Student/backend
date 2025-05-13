@@ -37,7 +37,7 @@ func GetFilteredUserDetails(c *fiber.Ctx) error {
 	// Fetch users with status "Unverified" OR "Pending" (across all tenants)
 	query := middleware.DBConn.Table("users").
 		Select("uid, email, phone_number, fullname, address, valid_id, account_status, user_type").
-		Where("account_status IN ?", []string{"Unverified", "Pending", "Verified"}) // Explicit status filter
+		Where("account_status IN ?", []string{"Pending", "Verified"}) // Explicit status filter
 
 	// ✅ Apply filters
 	if userType != "" {
