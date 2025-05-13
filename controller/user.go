@@ -73,3 +73,38 @@ func GetUserProfile(c *fiber.Ctx) error {
 		},
 	})
 }
+
+func GetFullnameByUID(c *fiber.Ctx) error {
+	log.Println("[DEBUG] GetFullnameByUID called")
+
+	uid := c.Params("uid")
+	if uid == "" {
+		log.Println("[ERROR] UID param is missing")
+		return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
+			RetCode: "400",
+			Message: "UID is required",
+			Data:    nil,
+		})
+	}
+
+	var user model.User
+	result := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&user)
+	if result.Error != nil {
+		log.Println("[ERROR] User not found:", result.Error)
+		return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
+			RetCode: "404",
+			Message: "User not found",
+			Data:    nil,
+		})
+	}
+
+	log.Printf("[DEBUG] Fullname for UID %s: %s", uid, user.Fullname)
+
+	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+		RetCode: "200",
+		Message: "Fullname retrieved successfully",
+		Data: fiber.Map{
+			"fullname": user.Fullname,
+		},
+	})
+}

@@ -10,7 +10,7 @@ import (
 func UserRoutes(app *fiber.App) {
 	// SAMPLE ENDPOINT
 	app.Get("/user/profile", middleware.AuthMiddleware, controller.GetUserProfile)
-
+	app.Get("/users/fullname/:uid", middleware.AuthMiddleware, controller.GetFullnameByUID)
 	// app.Get("/user/email", middleware.AuthMiddleware, controller.GetUserEmail)
 	//app.Post("/property/add", middleware.AuthMiddleware, controller.AddProperty)
 }

@@ -103,7 +103,7 @@ func FetchApartmentsByLandlord(c *fiber.Ctx) error {
 		}
 
 		var inquiryCount int64
-		middleware.DBConn.Model(&model.Inquiry{}).Where("apartment_id = ?", apt.ID).Count(&inquiryCount)
+		middleware.DBConn.Model(&model.Inquiry{}).Where("property_id = ?", apt.ID).Count(&inquiryCount)
 
 		results = append(results, ApartmentDetails{
 			Apartment:        apt,

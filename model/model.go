@@ -56,10 +56,18 @@ type Apartment struct {
 
 // Landlord Profile (Related to User via Uid)
 type LandlordProfile struct {
-	ID             uint   `gorm:"primaryKey"`
-	Uid            string `gorm:"not null;uniqueIndex"`
-	BusinessName   string `json:"business_name"`
-	BusinessPermit string `json:"business_permit"`
+	ID              uint      `gorm:"primaryKey"`
+	Uid             string    `gorm:"not null;uniqueIndex"`
+	BusinessName    string    `json:"business_name"`
+	BusinessAddress string    `json:"business_address"` // Added for completeness
+	BusinessContact string    `json:"business_contact"` // Added for completeness
+	BusinessPermit  string    `json:"business_permit"`  // Comma-separated URLs
+	VerificationID  string    `json:"verification_id"`  // URL to government ID image
+	Status          string    `json:"status" gorm:"default:'Pending'"` // Pending/Verified/Rejected
+	RejectionReason string    `json:"rejection_reason"` // If status is Rejected
+	VerifiedAt      time.Time `json:"verified_at"`      // When admin verified
+	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // Apartment images

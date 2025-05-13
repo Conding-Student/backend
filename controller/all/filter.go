@@ -269,7 +269,7 @@ func FetchSingleApartmentDetails(c *fiber.Ctx) error {
 	// Get inquiry count
 	var inquiryCount int64
 	middleware.DBConn.Model(&model.Inquiry{}).
-		Where("apartment_id = ?", apt.ID).
+		Where("property_id = ?", apt.ID).
 		Count(&inquiryCount)
 
 	result := ApartmentDetails{
