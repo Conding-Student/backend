@@ -6,7 +6,6 @@ import (
 	"intern_template_v1/model"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -134,7 +133,6 @@ func RegisterLandlord(c *fiber.Ctx) error {
 	landlordProfile := model.LandlordProfile{
 		Uid:            uid,
 		VerificationID: idImageURL,
-		BusinessAddress: req.BusinessAddress,
 		BusinessName:   req.BusinessName,
 		BusinessPermit: strings.Join(permitURLs, ","),
 	}
@@ -147,19 +145,19 @@ func RegisterLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update user
-	if err := tx.Model(&user).Updates(map[string]interface{}{
-		"UserType":      "Landlord",
-		"ValidID":       idImageURL,
-		"AccountStatus": "Pending",
-		"UpdatedAt":     time.Now(),
-	}).Error; err != nil {
-		tx.Rollback()
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to update user",
-			"error":   err.Error(),
-		})
-	}
+	// // Update user
+	// if err := tx.Model(&user).Updates(map[string]interface{}{
+	// 	"UserType":      "Landlord",
+	// 	"ValidID":       idImageURL,
+	// 	"AccountStatus": "Pending",
+	// 	"UpdatedAt":     time.Now(),
+	// }).Error; err != nil {
+	// 	tx.Rollback()
+	// 	return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+	// 		"message": "Failed to update user",
+	// 		"error":   err.Error(),
+	// 	})
+	// }
 
 	// Commit transaction
 	if err := tx.Commit().Error; err != nil {

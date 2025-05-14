@@ -4,20 +4,22 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
+	"github.com/gofiber/fiber/v2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
+// Message Structures
 type FCMMessage struct {
 	Message struct {
 		Token        string            `json:"token"`
@@ -31,18 +33,69 @@ type NotificationLog struct {
 	SenderID        string    `firestore:"sender_id,omitempty"`
 	ConversationID  string    `firestore:"conversation_id"`
 	FCMMessageID    string    `firestore:"fcm_message_id,omitempty"`
-	Status          string    `firestore:"status"` // "sent", "delivered", "opened", "failed"
+	Status          string    `firestore:"status"`
 	Error           string    `firestore:"error,omitempty"`
 	Timestamp       time.Time `firestore:"timestamp"`
 	DeliveryAttempt int       `firestore:"delivery_attempt"`
+	Title           string    `firestore:"title,omitempty"`
+	Body            string    `firestore:"body,omitempty"`
 }
 
+// Global variables
 var (
 	firestoreClient *firestore.Client
 	projectID       string
 )
 
+// Initialization
 func init() {
+	initializeFirebase()
+}
+// SendNotificationHandler handles sending notifications
+func SendNotificationHandler(c *fiber.Ctx) error {
+	type request struct {
+		FCMToken       string `json:"fcmToken"`
+		Title          string `json:"title"`
+		Body           string `json:"body"`
+		ConversationID string `json:"conversationId"`
+		SenderID       string `json:"senderId"`
+	}
+
+	var req request
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	go SendPushNotification(req.FCMToken, req.Title, req.Body, req.ConversationID, req.SenderID)
+
+	return c.JSON(fiber.Map{
+		"message": "Notification processing started",
+	})
+}
+
+// TrackNotificationOpenHandler handles tracking notification opens
+func TrackNotificationOpenHandler(c *fiber.Ctx) error {
+	logId := c.Params("logId")
+	if logId == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "logId is required",
+		})
+	}
+
+	if err := TrackNotificationOpen(logId); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to track notification open",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Notification marked as opened",
+	})
+}
+
+func initializeFirebase() {
 	ctx := context.Background()
 	serviceAccountPath := "config/rentxpert-a987d-firebase-adminsdk-fbsvc-682d5e8e0b.json"
 	
@@ -59,6 +112,10 @@ func init() {
 	}
 
 	// Extract project ID
+	projectID = extractProjectID(serviceAccountPath)
+}
+
+func extractProjectID(serviceAccountPath string) string {
 	jsonKey, err := os.ReadFile(serviceAccountPath)
 	if err != nil {
 		log.Fatalf("Failed to read service account file: %v\n", err)
@@ -68,179 +125,153 @@ func init() {
 	if err := json.Unmarshal(jsonKey, &serviceAccount); err != nil {
 		log.Fatalf("Failed to parse service account: %v\n", err)
 	}
-	projectID = serviceAccount["project_id"].(string)
+	return serviceAccount["project_id"].(string)
 }
 
-func SendPushNotification(fcmToken, title, body, conversationId, senderId string) error {
+
+// Core Functions
+func SendPushNotification(fcmToken, title, body, conversationId, senderId string) {
 	ctx := context.Background()
-	startTime := time.Now()
-	
-	// Create initial log entry
-	logRef := firestoreClient.Collection("notification_logs").NewDoc()
-	initialLog := NotificationLog{
-		ReceiverID: func() string {
-			receiverID, err := extractReceiverIdFromToken(fcmToken)
-			if err != nil {
-				log.Printf("Error extracting receiver ID: %v\n", err)
-				return "unknown"
-			}
-			return receiverID
-		}(),
-		SenderID:        senderId,
-		ConversationID:  conversationId,
-		Status:          "attempting",
-		Timestamp:       startTime,
-		DeliveryAttempt: 1,
-	}
 
-	if _, err := logRef.Set(ctx, initialLog); err != nil {
-		log.Printf("Failed to create initial log entry: %v\n", err)
-	}
+	// Always send the push notification
+	go sendPushOnly(fcmToken, title, body, conversationId, senderId)
 
-	// Prepare FCM message
-	msg := FCMMessage{}
-	msg.Message.Token = fcmToken
-	msg.Message.Notification = map[string]string{
-		"title": title,
-		"body":  body,
-	}
-	msg.Message.Data = map[string]string{
-		"conversationId": conversationId,
-		"senderId":       senderId,
-		"click_action":   "FLUTTER_NOTIFICATION_CLICK",
-		"logId":          logRef.ID, // Reference back to our log
-	}
+	// Log only once per conversation
+	go func() {
+		hasExisting, err := hasExistingNotification(ctx, conversationId, senderId)
+		if err != nil {
+			log.Printf("Error checking existing log: %v", err)
+			return
+		}
+		if hasExisting {
+			log.Printf("Skipping log creation for conversation %s", conversationId)
+			return
+		}
 
-	bodyBytes, _ := json.Marshal(msg)
+		receiverID, _ := extractReceiverIdFromToken(fcmToken)
+		logRef := firestoreClient.Collection("notification_logs").NewDoc()
+		logEntry := NotificationLog{
+			ReceiverID:      receiverID,
+			SenderID:        senderId,
+			ConversationID:  conversationId,
+			Status:          "sent",
+			Timestamp:       time.Now(),
+			DeliveryAttempt: 1,
+			Title:           title,
+			Body:            body,
+		}
 
-	// Get authenticated client
-	jsonKey, err := os.ReadFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-682d5e8e0b.json")
+		if _, err := logRef.Set(ctx, logEntry); err != nil {
+			log.Printf("Failed to save log: %v", err)
+		}
+	}()
+}
+
+func sendPushOnly(fcmToken, title, body, conversationId, senderId string) {
+	ctx := context.Background()
+
+	// Load service account key
+	saKey, err := os.ReadFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-682d5e8e0b.json")
 	if err != nil {
-		return logAndUpdate(ctx, logRef, "failed", fmt.Sprintf("failed to read service account file: %v", err))
+		log.Printf("Error reading service key: %v", err)
+		return
 	}
 
-	conf, err := google.JWTConfigFromJSON(jsonKey, "https://www.googleapis.com/auth/firebase.messaging")
+	conf, err := google.JWTConfigFromJSON(saKey, "https://www.googleapis.com/auth/firebase.messaging")
 	if err != nil {
-		return logAndUpdate(ctx, logRef, "failed", fmt.Sprintf("failed to parse JWT config: %v", err))
+		log.Printf("Error parsing JWT config: %v", err)
+		return
 	}
 
 	client := conf.Client(ctx)
 	url := fmt.Sprintf("https://fcm.googleapis.com/v1/projects/%s/messages:send", projectID)
 
-	// Send with retry logic
-	maxAttempts := 3
-	var lastError error
-
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		log.Printf("Attempt %d to send notification to %s\n", attempt, initialLog.ReceiverID)
-		
-		resp, err := client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
-		if err != nil {
-			lastError = fmt.Errorf("push failed: %v", err)
-			time.Sleep(time.Duration(attempt) * time.Second) // Exponential backoff
-			continue
-		}
-		defer resp.Body.Close()
-
-		respBody, _ := io.ReadAll(resp.Body)
-		
-		if resp.StatusCode != 200 {
-			lastError = fmt.Errorf("push failed: %s", string(respBody))
-			time.Sleep(time.Duration(attempt) * time.Second)
-			continue
-		}
-
-		// Parse FCM response
-		var result map[string]interface{}
-		if err := json.Unmarshal(respBody, &result); err != nil {
-			return logAndUpdate(ctx, logRef, "failed", fmt.Sprintf("failed to parse FCM response: %v", err))
-		}
-
-		fcmMessageID := result["name"].(string)
-		log.Printf("Successfully sent notification to %s (FCM ID: %s)\n", initialLog.ReceiverID, fcmMessageID)
-
-		// Update log with success
-		_, err = logRef.Update(ctx, []firestore.Update{
-			{Path: "status", Value: "sent"},
-			{Path: "fcm_message_id", Value: fcmMessageID},
-			{Path: "delivery_attempt", Value: attempt},
-			{Path: "timestamp", Value: time.Now()},
-		})
-		if err != nil {
-			log.Printf("Failed to update log entry: %v\n", err)
-		}
-
-		return nil
+	message := map[string]interface{}{
+		"message": map[string]interface{}{
+			"token": fcmToken,
+			"notification": map[string]string{
+				"title": title,
+				"body":  body,
+			},
+			"data": map[string]string{
+				"conversationId": conversationId,
+				"senderId":       senderId,
+				"click_action":   "FLUTTER_NOTIFICATION_CLICK",
+			},
+		},
 	}
 
-	return logAndUpdate(ctx, logRef, "failed", lastError.Error())
-}
-
-func logAndUpdate(ctx context.Context, logRef *firestore.DocumentRef, status, errorMsg string) error {
-	_, err := logRef.Update(ctx, []firestore.Update{
-		{Path: "status", Value: status},
-		{Path: "error", Value: errorMsg},
-		{Path: "timestamp", Value: time.Now()},
-	})
+	payload, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("Failed to update failed log entry: %v\n", err)
+		log.Printf("Error marshalling message: %v", err)
+		return
 	}
-	return errors.New(errorMsg)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+	if err != nil {
+		log.Printf("Error creating request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error sending push notification: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Printf("Push notification failed: %s", string(bodyBytes))
+		return
+	}
+
+	log.Printf("Push notification sent to %s", fcmToken)
 }
 
+// Helper Functions
+func hasExistingNotification(ctx context.Context, conversationId, senderId string) (bool, error) {
+	iter := firestoreClient.Collection("notification_logs").
+		Where("conversation_id", "==", conversationId).
+		Where("sender_id", "==", senderId).
+		Limit(1).
+		Documents(ctx)
+
+	_, err := iter.Next()
+	if err == iterator.Done {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
 
 func extractReceiverIdFromToken(fcmToken string) (string, error) {
-    if fcmToken == "" {
-        return "unknown", nil
-    }
+	if fcmToken == "" {
+		return "unknown", nil
+	}
 
-    ctx := context.Background()
-    
-    // Query all user_tokens documents where tokens array contains our fcmToken
-    iter := firestoreClient.Collection("user_tokens").
-        Where("tokens", "array-contains", fcmToken).
-        Limit(1).
-        Documents(ctx)
+	ctx := context.Background()
+	iter := firestoreClient.Collection("user_tokens").
+		Where("tokens", "array-contains", fcmToken).
+		Limit(1).
+		Documents(ctx)
 
-    doc, err := iter.Next()
-    if err == iterator.Done {
-        log.Printf("No user found with FCM token: %s", fcmToken)
-        return "unknown", nil
-    }
-    if err != nil {
-        log.Printf("Error querying Firestore: %v", err)
-        return "", err
-    }
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		log.Printf("No user found with FCM token: %s", fcmToken)
+		return "unknown", nil
+	}
+	if err != nil {
+		log.Printf("Error querying Firestore: %v", err)
+		return "", err
+	}
 
-    // The document ID is the user ID in this structure
-    userId := doc.Ref.ID
-    log.Printf("Found user %s for FCM token %s", userId, fcmToken)
-    return userId, nil
+	return doc.Ref.ID, nil
 }
 
-// // TrackNotificationOpenHandler handles the POST request to mark a notification as opened.
-// func TrackNotificationOpenHandler(c *fiber.Ctx) error {
-// 	logId := c.Params("logId")
-// 	if logId == "" {
-// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-// 			"error": "logId is required",
-// 		})
-// 	}
-
-// 	err := TrackNotificationOpen(logId)
-// 	if err != nil {
-// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 			"error": "Failed to track notification open",
-// 			"detail": err.Error(),
-// 		})
-// 	}
-
-// 	return c.JSON(fiber.Map{
-// 		"message": "Notification marked as opened",
-// 	})
-// }
-
-// Call this when a notification is opened in Flutter
 func TrackNotificationOpen(logId string) error {
 	ctx := context.Background()
 	_, err := firestoreClient.Collection("notification_logs").Doc(logId).Update(ctx, []firestore.Update{
@@ -248,4 +279,46 @@ func TrackNotificationOpen(logId string) error {
 		{Path: "opened_at", Value: time.Now()},
 	})
 	return err
+}
+
+// GetNotificationsHandler returns notification logs for a user
+func GetNotificationsHandler(c *fiber.Ctx) error {
+	uid := c.Params("uid")
+	if uid == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "uid is required",
+		})
+	}
+
+	ctx := context.Background()
+
+	var notifications []NotificationLog
+
+	iter := firestoreClient.Collection("notification_logs").
+		Where("receiver_id", "==", uid).
+		OrderBy("timestamp", firestore.Desc).
+		Documents(ctx)
+
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Error fetching notifications",
+			})
+		}
+
+		var notif NotificationLog
+		if err := doc.DataTo(&notif); err != nil {
+			log.Printf("Failed to parse document: %v", err)
+			continue
+		}
+		notifications = append(notifications, notif)
+	}
+
+	return c.JSON(fiber.Map{
+		"notifications": notifications,
+	})
 }

@@ -59,8 +59,6 @@ type LandlordProfile struct {
 	ID              uint      `gorm:"primaryKey"`
 	Uid             string    `gorm:"not null;uniqueIndex"`
 	BusinessName    string    `json:"business_name"`
-	BusinessAddress string    `json:"business_address"` // Added for completeness
-	BusinessContact string    `json:"business_contact"` // Added for completeness
 	BusinessPermit  string    `json:"business_permit"`  // Comma-separated URLs
 	VerificationID  string    `json:"verification_id"`  // URL to government ID image
 	Status          string    `json:"status" gorm:"default:'Pending'"` // Pending/Verified/Rejected
@@ -133,4 +131,18 @@ type Wishlist struct {
 	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
 	CreatedAt   time.Time `json:"created_at"`
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
+}
+
+type NotificationLog struct {
+	ID              uint      `gorm:"primaryKey"`
+	ReceiverID      string    `gorm:"type:varchar(255);not null"`
+	SenderID        string    `gorm:"type:varchar(255)"`
+	ConversationID  string    `gorm:"type:varchar(255);not null"`
+	FCMMessageID    string    `gorm:"type:varchar(255)"`
+	Status          string    `gorm:"type:varchar(50);not null"` // "sent", "delivered", "opened", "failed"
+	Error           string    `gorm:"type:text"`
+	Timestamp       time.Time `gorm:"not null"`
+	DeliveryAttempt int       `gorm:"default:1"`
+	Title           string    `gorm:"type:varchar(255)"`
+	Body            string    `gorm:"type:text"`
 }

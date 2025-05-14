@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	
 
 	if middleware.ConnectDB() {
 		log.Fatal("🔥 Failed to connect to the database")
@@ -47,14 +48,15 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName: middleware.GetEnv("PROJ_NAME"),
 	})
-	// Example usage of the JWT secret key
-	jwtSecret := os.Getenv("JWT_SECRET")
-	log.Println("Loaded JWT Secret:", jwtSecret) // 🔍 Debugging: REMOVE in production
-	// CORS CONFIG
+		// CORS CONFIG
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
+	// Example usage of the JWT secret key
+	jwtSecret := os.Getenv("JWT_SECRET")
+	log.Println("Loaded JWT Secret:", jwtSecret) // 🔍 Debugging: REMOVE in production
+
 	// Do not remove this endpoint
 	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
 		return c.SendStatus(204) // No Content
