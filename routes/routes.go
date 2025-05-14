@@ -34,8 +34,9 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("RentXpert! go, go, go lang!")
 	})
-	go tenantscontroller.DeleteExpiredInquiries()
+	//go tenantscontroller.DeleteExpiredInquiries()
 	go landlordcontroller.ManageApartmentExpirations()
+	go landlordcontroller.ManageExpiredDeletions()
 
 	//////////////////// Landlord //////////////////
 
@@ -50,6 +51,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)                        //insert application for landlord apartment
 	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
 	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
+	app.Post("/admin/login", admincontroller.LoginHandler)
 	app.Post("/bealandlord", middleware.AuthMiddleware, landlordcontroller.RegisterLandlord) //business permit
 	/////////////////// GET ////////////////////////
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord)           //Property get by landlord
@@ -119,6 +121,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/create/inquiry", middleware.AuthMiddleware, tenantscontroller.CreateInquiry)
 	// app.Post("/tenant/delete-inquiry", middleware.AuthMiddleware, tenantscontroller.DeleteInquiryAfterViewingNotification)
 	app.Post("/add/wishlist", middleware.AuthMiddleware, tenantscontroller.AddToWishlist)
+	app.Post("/add/recentlyviewed", middleware.AuthMiddleware, tenantscontroller.AddToRecentlyViewed)
 
 	//////////////////// GET //////////////////
 	// app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)

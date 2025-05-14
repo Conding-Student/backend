@@ -126,26 +126,7 @@ func DeleteApartmentByID(c *fiber.Ctx) error {
 		})
 	}
 
-	// Step 2: Bind JSON body to check confirmation
-	var req model.DeleteApartmentRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
-			RetCode: "400",
-			Message: "Invalid request body",
-			Data:    nil,
-		})
-	}
-
-	// Step 3: Confirm deletion
-	if !req.Confirm {
-		return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
-			RetCode: "400",
-			Message: "Deletion not confirmed",
-			Data:    nil,
-		})
-	}
-
-	// Step 4: Check if the apartment exists
+	// Step 2: Check if the apartment exists
 	var apartment model.Apartment
 	if err := middleware.DBConn.First(&apartment, apartmentID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
@@ -155,7 +136,7 @@ func DeleteApartmentByID(c *fiber.Ctx) error {
 		})
 	}
 
-	// Step 5: Delete the apartment (cascade deletes everything linked)
+	// Step 3: Delete the apartment (cascade deletes everything linked)
 	if err := middleware.DBConn.Delete(&apartment).Error; err != nil {
 		log.Println("[ERROR] Failed to delete apartment:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
@@ -165,7 +146,7 @@ func DeleteApartmentByID(c *fiber.Ctx) error {
 		})
 	}
 
-	// Step 6: Return success response
+	// Step 4: Return success response
 	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
 		RetCode: "200",
 		Message: "Apartment deleted successfully",
