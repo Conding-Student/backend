@@ -68,15 +68,8 @@ type LandlordProfile struct {
 	ID              uint      `gorm:"primaryKey"`
 	Uid             string    `gorm:"not null;uniqueIndex"`
 	BusinessName    string    `json:"business_name"`
-<<<<<<< HEAD
 	BusinessPermit  string    `json:"business_permit"`  // Comma-separated URLs
 	VerificationID  string    `json:"verification_id"`  // URL to government ID image
-=======
-	BusinessAddress string    `json:"business_address"`                // Added for completeness
-	BusinessContact string    `json:"business_contact"`                // Added for completeness
-	BusinessPermit  string    `json:"business_permit"`                 // Comma-separated URLs
-	VerificationID  string    `json:"verification_id"`                 // URL to government ID image
->>>>>>> c48a122b821c7d6c4e9950858be60d19aeefb744
 	Status          string    `json:"status" gorm:"default:'Pending'"` // Pending/Verified/Rejected
 	RejectionReason string    `json:"rejection_reason"`                // If status is Rejected
 	VerifiedAt      time.Time `json:"verified_at"`                     // When admin verified
@@ -148,7 +141,6 @@ type Wishlist struct {
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
-<<<<<<< HEAD
 type NotificationLog struct {
 	ID              uint      `gorm:"primaryKey"`
 	ReceiverID      string    `gorm:"type:varchar(255);not null"`
@@ -161,12 +153,12 @@ type NotificationLog struct {
 	DeliveryAttempt int       `gorm:"default:1"`
 	Title           string    `gorm:"type:varchar(255)"`
 	Body            string    `gorm:"type:text"`
-=======
+}
+
 type RecentlyViewed struct {
 	ID          uint      `gorm:"primaryKey"`
 	UID         string    `gorm:"not null"`                             // Tenant's UID
 	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
 	ExpiresAt   time.Time `gorm:"null"`
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
->>>>>>> c48a122b821c7d6c4e9950858be60d19aeefb744
 }
