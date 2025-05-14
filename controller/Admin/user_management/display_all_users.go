@@ -387,7 +387,7 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 
 	// Update all related inquiries by setting status to "Rejected" and expires_at
 	if err := tx.Model(&model.Inquiry{}).
-		Where("uid = ?", uid).
+		Where("tenant_uid = ? OR landlord_uid = ?", uid, uid). // Use proper column names
 		Updates(map[string]interface{}{
 			"status":     "Rejected",
 			"expires_at": expirationTime,
@@ -400,7 +400,6 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 			Data:    nil,
 		})
 	}
-
 	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()

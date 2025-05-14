@@ -68,8 +68,8 @@ type LandlordProfile struct {
 	ID              uint      `gorm:"primaryKey"`
 	Uid             string    `gorm:"not null;uniqueIndex"`
 	BusinessName    string    `json:"business_name"`
-	BusinessPermit  string    `json:"business_permit"`  // Comma-separated URLs
-	VerificationID  string    `json:"verification_id"`  // URL to government ID image
+	BusinessPermit  string    `json:"business_permit"`                 // Comma-separated URLs
+	VerificationID  string    `json:"verification_id"`                 // URL to government ID image
 	Status          string    `json:"status" gorm:"default:'Pending'"` // Pending/Verified/Rejected
 	RejectionReason string    `json:"rejection_reason"`                // If status is Rejected
 	VerifiedAt      time.Time `json:"verified_at"`                     // When admin verified
