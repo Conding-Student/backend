@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
@@ -30,7 +31,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// Verify Firebase ID Token
+// Verify Firebase ID Token with account status check
 func VerifyFirebaseToken(c *fiber.Ctx) error {
 	var requestData struct {
 		IDToken string `json:"id_token"`
@@ -42,9 +43,9 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 		})
 	}
 
-	// Ensure Firebase Auth Client is initialized
+	// Firebase Auth Client check
 	if firebaseAuthClient == nil {
-		log.Println("[ERROR] Firebase Auth Client is not initialized")
+		log.Println("[ERROR] Firebase Auth Client not initialized")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Server configuration error",
 		})
@@ -53,104 +54,98 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	// Verify Firebase ID Token
 	token, err := firebaseAuthClient.VerifyIDToken(context.Background(), requestData.IDToken)
 	if err != nil {
-		log.Printf("[ERROR] Failed to verify Firebase ID token: %v", err)
+		log.Printf("[ERROR] Firebase token verification failed: %v", err)
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid Firebase token",
 		})
 	}
 
-	// Log the token claims
-	log.Printf("✅ Firebase Token Verified! UID: %s, Claims: %+v\n", token.UID, token.Claims)
-
-	// Extract email from claims safely
-	emailClaim, emailExists := token.Claims["email"]
-	if !emailExists {
-		log.Println("[ERROR] Email claim not found in Firebase token")
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid Firebase token - missing email",
-		})
-	}
-
-	email, ok := emailClaim.(string)
+	// Extract UID and email
+	uid := token.UID
+	email, ok := token.Claims["email"].(string)
 	if !ok || email == "" {
-		log.Println("[ERROR] Email claim is not a valid string")
+		log.Println("[ERROR] Invalid email claim in token")
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid Firebase token - email format incorrect",
+			"error": "Invalid email in token",
 		})
 	}
 
-	// Store user in DB and get role
-	role := saveOrUpdateUser(token.UID, email)
+	// 🛑 Check for deleted account first
+	var existingUser model.User
+	if err := middleware.DBConn.
+		Unscoped(). // Include soft-deleted records
+		Where("uid = ?", uid).
+		First(&existingUser).Error; err == nil {
 
-	// Generate JWT
-	newJWT, err := middleware.GenerateJWT(token.UID, email, role)
+		if existingUser.AccountStatus == "Deleted" {
+			log.Printf("[WARNING] Deleted account attempt: %s", uid)
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error":   "Account deleted",
+				"message": "This account has been permanently deleted",
+			})
+		}
+	}
+
+	// 💾 Create/update user account
+	role, err := saveOrUpdateUser(uid, email)
 	if err != nil {
-		log.Printf("[ERROR] Failed to generate JWT: %v", err)
+		log.Printf("[ERROR] User save failed: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to generate JWT",
+			"error": "User account processing failed",
 		})
 	}
 
-	// Successful response
+	// 🔑 Generate JWT
+	newJWT, err := middleware.GenerateJWT(uid, email, role)
+	if err != nil {
+		log.Printf("[ERROR] JWT generation failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Authentication failed",
+		})
+	}
+
+	log.Printf("✅ Successful authentication: %s (%s)", email, uid)
 	return c.JSON(fiber.Map{
-		"message":      "Firebase token verified successfully",
-		"uid":          token.UID,
+		"message":      "Authentication successful",
+		"uid":          uid,
 		"email":        email,
 		"role":         role,
 		"access_token": newJWT,
 	})
 }
 
-// Save or update user in database
-func saveOrUpdateUser(uid, email string) string {
+// Enhanced saveOrUpdateUser function
+func saveOrUpdateUser(uid, email string) (string, error) {
 	var user model.User
-	var role string = "Tenant" // Default role for new users
+	err := middleware.DBConn.Where("uid = ?", uid).First(&user).Error
 
-	// Check if user already exists
-	result := middleware.DBConn.Where("uid = ?", uid).First(&user)
-
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			// // Fetch additional user details from Firebase
-			firebaseUser, err := firebaseAuthClient.GetUser(context.Background(), uid)
-			if err != nil {
-				log.Println("[ERROR] Failed to fetch user details from Firebase:", err)
-				return role
+	if err == nil {
+		// Existing user - update email if changed
+		if user.Email != email {
+			user.Email = email
+			if err := middleware.DBConn.Save(&user).Error; err != nil {
+				return "", fmt.Errorf("email update failed: %v", err)
 			}
-
-			// Extract Firebase user details
-			provider := "firebase"
-			if len(firebaseUser.ProviderUserInfo) > 0 {
-				provider = firebaseUser.ProviderUserInfo[0].ProviderID
-			}
-
-			// Create new user entry
-			newUser := model.User{
-				Uid:           uid,
-				Email:         email,
-				UserType:      role,
-				PhoneNumber:   firebaseUser.PhoneNumber,
-				Provider:      provider,
-				PhotoURL:      firebaseUser.PhotoURL,
-				Fullname:      firebaseUser.DisplayName,
-				Birthday:      time.Time{},
-				AccountStatus: "Unverified", // Add this line
-			}
-
-			// Save new user in the database
-			err = middleware.DBConn.Create(&newUser).Error
-			if err != nil {
-				log.Println("[ERROR] Failed to insert new user:", err)
-				return role
-			}
-			fmt.Println("🆕 New user added:", email, "Role:", role)
-		} else {
-			log.Println("[ERROR] Database error while fetching user role:", result.Error)
-			return role
 		}
-	} else {
-		role = user.UserType
+		return user.UserType, nil
 	}
 
-	return role
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Create new user
+		newUser := model.User{
+			Uid:           uid,
+			Email:         email,
+			AccountStatus: "Unverified",
+			UserType:      "Tenant", // Default role
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+
+		if err := middleware.DBConn.Create(&newUser).Error; err != nil {
+			return "", fmt.Errorf("user creation failed: %v", err)
+		}
+		return newUser.UserType, nil
+	}
+
+	return "", fmt.Errorf("database error: %v", err)
 }
