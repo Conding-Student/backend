@@ -40,7 +40,7 @@ func ConnectDB() bool {
 		&model.HouseRule{},
 		&model.ApartmentHouseRule{},
 		&model.Wishlist{},
-		&model.Admins{},
+		&model.RecentlyViewed{},
 		// &model.AdminToken{},
 	)
 

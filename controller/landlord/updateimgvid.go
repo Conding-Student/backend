@@ -5,6 +5,8 @@ import (
 	"intern_template_v1/config"
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
+
+	//"intern_template_v1/model/response"
 	"net/http"
 	"strconv"
 	"time"
@@ -275,4 +277,63 @@ func ManageApartmentExpirations() {
 				currentTime.Format(time.RFC3339), result.RowsAffected)
 		}
 	}
+}
+
+// ✅ Background cleaner with enhanced logging
+func ManageExpiredDeletions() {
+	fmt.Println("[BACKGROUND CLEANER] Starting automatic deletion scheduler...")
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		startTime := time.Now().UTC()
+		fmt.Printf("\n[%s] Starting deletion cycle\n", startTime.Format(time.RFC3339))
+
+		currentTime := time.Now().UTC()
+
+		// Track deletions
+		userCount := deleteExpiredRecords(&model.User{}, "account_status = ?", "Deleted", currentTime)
+		apartmentCount := deleteExpiredRecords(&model.Apartment{}, "status = ?", "Deleted", currentTime)
+		inquiryCount := deleteExpiredRecords(&model.Inquiry{}, "status = ?", "Rejected", currentTime)
+
+		total := userCount + apartmentCount + inquiryCount
+
+		if total > 0 {
+			fmt.Printf("[%s] Deletion complete: %d total records purged (Users: %d, Apartments: %d, Inquiries: %d)\n",
+				currentTime.Format(time.RFC3339),
+				total,
+				userCount,
+				apartmentCount,
+				inquiryCount)
+		} else {
+			fmt.Printf("[%s] No expired records found for deletion\n", currentTime.Format(time.RFC3339))
+		}
+
+		fmt.Printf("[%s] Cycle duration: %v\n\n",
+			currentTime.Format(time.RFC3339),
+			time.Since(startTime).Round(time.Millisecond))
+	}
+}
+
+// ✅ Enhanced helper function with return count
+func deleteExpiredRecords(model interface{}, statusQuery string, statusValue string, currentTime time.Time) int64 {
+	result := middleware.DBConn.Unscoped().Where(
+		"expires_at < ? AND "+statusQuery,
+		currentTime,
+		statusValue,
+	).Delete(model)
+
+	if result.Error != nil {
+		fmt.Printf("Error deleting records: %v\n", result.Error)
+		return 0
+	}
+
+	if result.RowsAffected > 0 {
+		fmt.Printf("[%s] Permanently deleted %d %T records\n",
+			currentTime.Format(time.RFC3339),
+			result.RowsAffected,
+			model)
+	}
+
+	return result.RowsAffected
 }

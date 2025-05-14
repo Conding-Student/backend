@@ -110,8 +110,8 @@ func DeleteExpiredInquiries() {
 		// 	}
 		// }
 
-		// Wait for some time before running again, e.g., every 1 hour
-		time.Sleep(1 * time.Hour)
+		// Wait for some time before running again, e.g., every 1 minute
+		time.Sleep(1 * time.Minute)
 	}
 }
 
@@ -150,7 +150,7 @@ func CountAcceptedOrRejectedInquiries(c *fiber.Ctx) error {
 }
 
 // GetAllinquiries retrieves all inquiries for the tenant
-// with status "Accepted", "Rejected", or "Pending"	
+// with status "Accepted", "Rejected", or "Pending"
 func GetAllinquiries(c *fiber.Ctx) error {
 	// Extract JWT claims to get tenant UID
 	userClaims, ok := c.Locals("user").(jwt.MapClaims)

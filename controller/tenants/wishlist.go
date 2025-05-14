@@ -9,6 +9,58 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func AddToRecentlyViewed(c *fiber.Ctx) error {
+	uid, err := GetUIDFromToken(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// 🔐 Fetch the user's role
+	var user model.User
+	if err := middleware.DBConn.First(&user, "uid = ?", uid).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// ❌ Deny if user is a landlord
+	if user.UserType == "Landlord" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Landlords cannot add to recently viewed"})
+	}
+
+	// 📥 Parse request
+	type Request struct {
+		ApartmentID uint `json:"apartment_id"`
+	}
+	var body Request
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// 🔍 Check for existing entry
+	var existing model.RecentlyViewed
+	result := middleware.DBConn.Where("uid = ? AND apartment_id = ?", uid, body.ApartmentID).First(&existing)
+
+	if result.Error == nil {
+		// 🕑 Update expiration time if exists
+		newExpiry := time.Now().Add(7 * 24 * time.Hour) // 30 days expiration
+		if err := middleware.DBConn.Model(&existing).Update("expires_at", newExpiry).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update expiration"})
+		}
+		return c.JSON(fiber.Map{"message": "Recently viewed entry updated"})
+	}
+
+	// 🆕 Create new entry if not exists
+	recentlyViewed := model.RecentlyViewed{
+		UID:         uid,
+		ApartmentID: body.ApartmentID,
+		ExpiresAt:   time.Now().Add(30 * 24 * time.Hour), // 30 days expiration
+	}
+
+	if err := middleware.DBConn.Create(&recentlyViewed).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Apartment added to recently viewed"})
+}
 
 func AddToWishlist(c *fiber.Ctx) error {
 	uid, err := GetUIDFromToken(c)
@@ -54,7 +106,6 @@ func AddToWishlist(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Apartment added to wishlist"})
 }
-
 
 func RemoveFromWishlist(c *fiber.Ctx) error {
 	log.Println("RemoveFromWishlist handler triggered") // Check if this is logged

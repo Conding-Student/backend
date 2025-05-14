@@ -40,6 +40,7 @@ type User struct {
 	Birthday      time.Time `json:"birthday"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+	ExpiresAt     time.Time `gorm:"null"`
 }
 
 type Apartment struct {
@@ -67,15 +68,16 @@ type LandlordProfile struct {
 	ID              uint      `gorm:"primaryKey"`
 	Uid             string    `gorm:"not null;uniqueIndex"`
 	BusinessName    string    `json:"business_name"`
-	BusinessAddress string    `json:"business_address"` // Added for completeness
-	BusinessContact string    `json:"business_contact"` // Added for completeness
-	BusinessPermit  string    `json:"business_permit"`  // Comma-separated URLs
-	VerificationID  string    `json:"verification_id"`  // URL to government ID image
+	BusinessAddress string    `json:"business_address"`                // Added for completeness
+	BusinessContact string    `json:"business_contact"`                // Added for completeness
+	BusinessPermit  string    `json:"business_permit"`                 // Comma-separated URLs
+	VerificationID  string    `json:"verification_id"`                 // URL to government ID image
 	Status          string    `json:"status" gorm:"default:'Pending'"` // Pending/Verified/Rejected
-	RejectionReason string    `json:"rejection_reason"` // If status is Rejected
-	VerifiedAt      time.Time `json:"verified_at"`      // When admin verified
+	RejectionReason string    `json:"rejection_reason"`                // If status is Rejected
+	VerifiedAt      time.Time `json:"verified_at"`                     // When admin verified
 	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ExpiresAt       time.Time `gorm:"null"`
 }
 
 // Apartment images
@@ -95,17 +97,15 @@ type ApartmentVideo struct {
 }
 
 type Inquiry struct {
-    ID             uint       `gorm:"primaryKey"`
-    TenantUID      string     `gorm:"not null"`
-    LandlordUID    string     `gorm:"not null"`
-    PropertyID     uint       `gorm:"not null"`
-    InitialMessage string     `gorm:"null"`
-    PreferredVisit *time.Time 
-    CreatedAt      time.Time  `gorm:"autoCreateTime"`
-	ExpiresAt      time.Time  `gorm:"null"` 
+	ID             uint   `gorm:"primaryKey"`
+	TenantUID      string `gorm:"not null"`
+	LandlordUID    string `gorm:"not null"`
+	PropertyID     uint   `gorm:"not null"`
+	InitialMessage string `gorm:"null"`
+	PreferredVisit *time.Time
+	CreatedAt      time.Time `gorm:"autoCreateTime"`
+	ExpiresAt      time.Time `gorm:"null"`
 }
-
-
 
 // Amenity model
 type Amenity struct {
@@ -140,5 +140,13 @@ type Wishlist struct {
 	UID         string    `gorm:"not null"`                             // Tenant's UID
 	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
 	CreatedAt   time.Time `json:"created_at"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
+}
+
+type RecentlyViewed struct {
+	ID          uint      `gorm:"primaryKey"`
+	UID         string    `gorm:"not null"`                             // Tenant's UID
+	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
+	ExpiresAt   time.Time `gorm:"null"`
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }

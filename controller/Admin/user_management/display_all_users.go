@@ -1,6 +1,7 @@
 package controller
 
 import (
+	//"fmt"
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
 	"intern_template_v1/model/response"
@@ -8,6 +9,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -44,7 +46,7 @@ func GetFilteredUserDetails(c *fiber.Ctx) error {
 		query = query.Where("user_type = ?", userType)
 	}
 	if accountStatus != "" {
-		query = query.Where("account_status = ?", accountStatus)
+		query = query.Where("LOWER(account_status) LIKE ?", "%"+strings.ToLower(accountStatus)+"%")
 	}
 	if name != "" {
 		query = query.Where("LOWER(fullname) LIKE ?", "%"+strings.ToLower(name)+"%")
@@ -312,7 +314,7 @@ func UpdateUserDetails(c *fiber.Ctx) error {
 	})
 }
 
-// ✅ Function to soft-delete a user and related apartments and inquiries
+// ✅ Function to soft-delete a user and related apartments and inquiries, setting expiration time
 func SoftDeleteUser(c *fiber.Ctx) error {
 	uid := c.Params("uid") // Get the UID from the URL path parameter
 
@@ -348,8 +350,12 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Soft delete the user by updating account_status
+	// Calculate expiration time (e.g., 90 days from now)
+	expirationTime := time.Now().UTC().Add(90 * 24 * time.Hour) // Adjust duration as needed
+	//expirationTime := time.Now().UTC().Add(1 * time.Minute) // Test with 2 minutes
+	// Soft delete the user by updating account_status and expires_at
 	user.AccountStatus = "Deleted"
+	user.ExpiresAt = expirationTime
 	if err := tx.Save(&user).Error; err != nil {
 		tx.Rollback()
 		log.Println("[ERROR] Failed to soft-delete user:", err)
@@ -360,8 +366,16 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Soft delete all related apartments by setting status to "Deleted"
-	if err := tx.Model(&model.Apartment{}).Where("user_id = ?", uid).Update("status", "Deleted").Error; err != nil {
+	// Prepare expiration time pointer for Apartment (which uses *time.Time)
+	expirationTimePtr := &expirationTime
+
+	// Soft delete all related apartments by setting status to "Deleted" and expires_at
+	if err := tx.Model(&model.Apartment{}).
+		Where("user_id = ?", uid).
+		Updates(map[string]interface{}{
+			"status":     "Deleted",
+			"expires_at": expirationTimePtr,
+		}).Error; err != nil {
 		tx.Rollback()
 		log.Println("[ERROR] Failed to update related apartments:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
@@ -371,8 +385,13 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update all related inquiries by setting status to "Rejected"
-	if err := tx.Model(&model.Inquiry{}).Where("uid = ?", uid).Update("status", "Rejected").Error; err != nil {
+	// Update all related inquiries by setting status to "Rejected" and expires_at
+	if err := tx.Model(&model.Inquiry{}).
+		Where("uid = ?", uid).
+		Updates(map[string]interface{}{
+			"status":     "Rejected",
+			"expires_at": expirationTime,
+		}).Error; err != nil {
 		tx.Rollback()
 		log.Println("[ERROR] Failed to update related inquiries:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
@@ -395,10 +414,11 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
 		RetCode: "200",
-		Message: "User and related data soft-deleted successfully",
+		Message: "User and related data soft-deleted successfully. All records will expire on " + expirationTime.Format(time.RFC3339),
 		Data: fiber.Map{
 			"uid":            user.Uid,
 			"account_status": user.AccountStatus,
+			"expires_at":     user.ExpiresAt.Format(time.RFC3339),
 		},
 	})
 }
