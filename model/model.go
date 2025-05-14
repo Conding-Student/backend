@@ -99,7 +99,7 @@ type Inquiry struct {
 	TenantUID      string `gorm:"not null"`
 	LandlordUID    string `gorm:"not null"`
 	PropertyID     uint   `gorm:"not null"`
-	Status         string `gorm:"null"`
+	Status         string `gorm:"not null;default:'Active'" json:"status"`
 	InitialMessage string `gorm:"null"`
 	PreferredVisit *time.Time
 	CreatedAt      time.Time `gorm:"autoCreateTime"`
