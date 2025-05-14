@@ -97,7 +97,9 @@ type ApartmentVideo struct {
 type Inquiry struct {
 	ID             uint   `gorm:"primaryKey"`
 	TenantUID      string `gorm:"not null"`
+	LandlordUID    string `gorm:"not null"`
 	PropertyID     uint   `gorm:"not null"`
+	Status         string `gorm:"null"`
 	InitialMessage string `gorm:"null"`
 	PreferredVisit *time.Time
 	CreatedAt      time.Time `gorm:"autoCreateTime"`
