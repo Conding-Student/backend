@@ -101,7 +101,6 @@ func createInquiryRecord(tenantUID string, req CreateInquiryRequest) (*model.Inq
 
     inquiry := &model.Inquiry{
         TenantUID:      tenantUID,
-        LandlordUID:    property.Uid,
         PropertyID:     req.PropertyID,
         InitialMessage: req.Message,
         PreferredVisit: visitTime,
