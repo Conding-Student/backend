@@ -105,11 +105,11 @@ func UpdateContactInfo(c *fiber.Ctx) error {
 }
 
 func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
-	// Get landlord profile ID from params
-	id := c.Params("id")
-	if id == "" {
+	// Get UID from params
+	uid := c.Params("uid")
+	if uid == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Missing landlord profile ID parameter",
+			"message": "Missing user UID parameter",
 		})
 	}
 
@@ -127,13 +127,13 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 		}
 	}()
 
-	// Get landlord profile first to find associated UID
+	// Get latest landlord profile for the UID
 	var landlordProfile model.LandlordProfile
-	if err := tx.Where("id = ?", id).First(&landlordProfile).Error; err != nil {
+	if err := tx.Where("uid = ?", uid).Order("created_at DESC").First(&landlordProfile).Error; err != nil {
 		tx.Rollback()
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"message": "Landlord profile not found",
+				"message": "No landlord profile found for the provided user UID",
 			})
 		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -152,11 +152,11 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 
 	// Check if user exists and current status
 	var user model.User
-	if err := tx.Where("uid = ?", landlordProfile.Uid).First(&user).Error; err != nil {
+	if err := tx.Where("uid = ?", uid).First(&user).Error; err != nil {
 		tx.Rollback()
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"message": "User not found for this landlord profile",
+				"message": "User not found for this UID",
 			})
 		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -172,17 +172,10 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 			"message": "User is already a verified landlord",
 		})
 	}
-	// Prevent verification if already a verified landlord
-	if user.UserType == "Landlord" && user.AccountStatus == "Verified" {
-		tx.Rollback()
-		return c.Status(http.StatusConflict).JSON(fiber.Map{
-			"message": "User is already a verified landlord",
-		})
-	}
 
 	// Update user account status and type
 	if err := tx.Model(&model.User{}).
-		Where("uid = ?", landlordProfile.Uid).
+		Where("uid = ?", uid).
 		Updates(map[string]interface{}{
 			"account_status": "Verified",
 			"user_type":      "Landlord",
@@ -194,14 +187,14 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update landlord profile
+	// Update landlord profile using the retrieved ID
 	updateData := map[string]interface{}{
 		"verified_at":      time.Now(),
 		"rejection_reason": nil, // Clear any previous rejection
 	}
 
 	if err := tx.Model(&model.LandlordProfile{}).
-		Where("id = ?", id).
+		Where("id = ?", landlordProfile.ID).
 		Updates(updateData).Error; err != nil {
 		tx.Rollback()
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -221,8 +214,8 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Landlord verified successfully",
 		"data": fiber.Map{
-			"profile_id":     id,
-			"uid":            landlordProfile.Uid,
+			"profile_id":     landlordProfile.ID,
+			"uid":            uid,
 			"account_status": "Verified",
 			"user_type":      "Landlord",
 			"verified_at":    time.Now().Format(time.RFC3339),
