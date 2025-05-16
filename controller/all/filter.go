@@ -14,21 +14,12 @@ import (
 // FetchApprovedApartmentsForTenant returns filtered and sorted approved apartments
 func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	type ApartmentDetails struct {
-		model.Apartment
+		ApartmentAdress         string   `json:"location_link"`
 		LandlordName     string   `json:"landlord_name"`
-		LandlordEmail    string   `json:"landlord_email"`
 		LandlordPhone    string   `json:"landlord_phone"`
-		LandlordAddress  string   `json:"landlord_address"`
-		LandlordValidID  string   `json:"landlord_valid_id"`
 		LandlordPhotoURL string   `json:"landlord_photo_url"`
-		LandlordUserType string   `json:"landlord_user_type"`
-		LandlordStatus   string   `json:"landlord_account_status"`
 		Images           []string `json:"images"`
-		Videos           []string `json:"videos"`
-		Amenities        []string `json:"amenities"`
-		HouseRules       []string `json:"house_rules"`
-		InquiriesCount   int64    `json:"inquiries_count"`
-		RelevanceScore   int      `json:"-"`
+		Price 		  float64  `json:"RentPrice"`
 	}
 
 	// Get query parameters
@@ -52,16 +43,27 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	}
 
 	if minPriceStr != "" {
-		if minPrice, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
-			db = db.Where("rent_price >= ?", minPrice)
-		}
-	}
+    minPrice, err := strconv.ParseFloat(strings.TrimSpace(minPriceStr), 64)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "Invalid min price format",
+        })
+    }
+    db = db.Where("rent_price >= ?", minPrice) // ✅ Correct filtering
+}
 
-	if maxPriceStr != "" {
-		if maxPrice, err := strconv.ParseFloat(maxPriceStr, 64); err == nil {
-			db = db.Where("rent_price <= ?", maxPrice)
-		}
-	}
+
+			if maxPriceStr != "" {
+    maxPrice, err := strconv.ParseFloat(maxPriceStr, 64)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "Invalid max price format",
+        })
+    }
+    db = db.Where("rent_price <= ?", maxPrice) // ✅ Correct filter
+}
+
+
 
 	if allowedGenders != "" {
 		allowedGendersList := strings.Split(allowedGenders, ",")
@@ -107,14 +109,6 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 			imageUrls[i] = img.ImageURL
 		}
 
-		// Fetch videos
-		var videos []model.ApartmentVideo
-		middleware.DBConn.Where("apartment_id = ?", apt.ID).Find(&videos)
-		videoUrls := make([]string, len(videos))
-		for i, vid := range videos {
-			videoUrls[i] = vid.VideoURL
-		}
-
 		// Fetch amenities
 		var amenities []model.Amenity
 		middleware.DBConn.
@@ -138,10 +132,7 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 		}
 
 		// Get inquiry count
-		var inquiryCount int64
-		middleware.DBConn.Model(&model.Inquiry{}).
-			Where("apartment_id = ? AND (status = ? OR status = ?)", apt.ID, "Accepted", "Pending").
-			Count(&inquiryCount)
+
 
 		// Calculate relevance score
 		score := 0
@@ -150,32 +141,15 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 
 		if score > 0 || (c.Query("amenities") == "" && c.Query("house_rules") == "") {
 			results = append(results, ApartmentDetails{
-				Apartment:        apt,
+				ApartmentAdress: apt.LocationLink,
 				LandlordName:     landlord.Fullname,
-				LandlordEmail:    landlord.Email,
 				LandlordPhone:    landlord.PhoneNumber,
-				LandlordAddress:  landlord.Address,
-				LandlordValidID:  landlord.ValidID,
 				LandlordPhotoURL: landlord.PhotoURL,
-				LandlordUserType: landlord.UserType,
-				LandlordStatus:   landlord.AccountStatus,
 				Images:           imageUrls,
-				Videos:           videoUrls,
-				Amenities:        amenityNames,
-				HouseRules:       ruleNames,
-				InquiriesCount:   inquiryCount,
-				RelevanceScore:   score,
+				Price:           apt.RentPrice,
 			})
 		}
 	}
-
-	// Sort by relevance then by inquiries count
-	sort.SliceStable(results, func(i, j int) bool {
-		if results[i].RelevanceScore == results[j].RelevanceScore {
-			return results[i].InquiriesCount > results[j].InquiriesCount
-		}
-		return results[i].RelevanceScore > results[j].RelevanceScore
-	})
 
 	// At the end of your FetchApprovedApartmentsForTenant function
 		if len(results) == 0 {

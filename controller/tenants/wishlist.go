@@ -62,6 +62,152 @@ func AddToRecentlyViewed(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Apartment added to recently viewed"})
 }
 
+
+
+func FetchRecentlyViewed(c *fiber.Ctx) error {
+	uid, err := GetUIDFromToken(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized: Missing or invalid JWT",
+		})
+	}
+
+	// Step 1: Get all non-expired recently viewed items
+	var viewedItems []model.RecentlyViewed
+	if err := middleware.DBConn.
+		Preload("Apartment").
+		Where("uid = ? AND expires_at > ?", uid, time.Now()).
+		Find(&viewedItems).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error: Unable to retrieve recently viewed apartments",
+			"error":   err.Error(),
+		})
+	}
+
+	if len(viewedItems) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "No recently viewed apartments found",
+		})
+	}
+
+	// Extract apartment IDs
+	var apartmentIDs []uint
+	for _, item := range viewedItems {
+		apartmentIDs = append(apartmentIDs, item.ApartmentID)
+	}
+
+	// Step 2: Fetch approved apartments
+	var apartments []model.Apartment
+	if err := middleware.DBConn.
+		Where("status = ? AND id IN (?)", "Approved", apartmentIDs).
+		Find(&apartments).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error: Unable to fetch approved apartments",
+			"error":   err.Error(),
+		})
+	}
+
+	if len(apartments) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "No approved apartments available in your recently viewed list",
+		})
+	}
+
+	// Step 3: Fetch additional details
+	var apartmentDetails []fiber.Map
+	for _, apartment := range apartments {
+		// Amenities
+		var amenities []model.Amenity
+		if err := middleware.DBConn.
+			Joins("JOIN apartment_amenities aa ON aa.amenity_id = amenities.id").
+			Where("aa.apartment_id = ?", apartment.ID).
+			Find(&amenities).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Database error: Unable to fetch amenities",
+				"error":   err.Error(),
+			})
+		}
+
+		// House Rules
+		var houseRules []model.HouseRule
+		if err := middleware.DBConn.
+			Joins("JOIN apartment_house_rules ahr ON ahr.house_rule_id = house_rules.id").
+			Where("ahr.apartment_id = ?", apartment.ID).
+			Find(&houseRules).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Database error: Unable to fetch house rules",
+				"error":   err.Error(),
+			})
+		}
+
+		// Images
+		var images []model.ApartmentImage
+		if err := middleware.DBConn.
+			Where("apartment_id = ?", apartment.ID).
+			Find(&images).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Database error: Unable to fetch images",
+				"error":   err.Error(),
+			})
+		}
+var landlord model.User
+			if err := middleware.DBConn.Where("uid = ?", apartment.Uid).First(&landlord).Error; err != nil {
+				continue
+			}
+		// Inquiry count
+		var inquiryCount int64
+		if err := middleware.DBConn.
+			Model(&model.Inquiry{}).
+			Where("property_id = ?", apartment.ID).
+			Count(&inquiryCount).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Database error: Unable to count inquiries",
+				"error":   err.Error(),
+			})
+		}
+
+		apartmentDetails = append(apartmentDetails, fiber.Map{
+			"apartment_id":  apartment.ID,
+			"property_name": apartment.PropertyName,
+			"property_type": apartment.PropertyType,
+			"rent_price":    apartment.RentPrice,
+			"location_link": apartment.LocationLink,
+			"landmarks":     apartment.Landmarks,
+			"images": func() []fiber.Map {
+				var imageDetails []fiber.Map
+				for _, image := range images {
+					imageDetails = append(imageDetails, fiber.Map{
+						"image_url": image.ImageURL,
+					})
+				}
+				return imageDetails
+			}(),
+			"amenities": func() []string {
+				var names []string
+				for _, amenity := range amenities {
+					names = append(names, amenity.Name)
+				}
+				return names
+			}(),
+			"house_rules": func() []string {
+				var rules []string
+				for _, rule := range houseRules {
+					rules = append(rules, rule.Rule)
+				}
+				return rules
+			}(),
+			"inquiries_count": inquiryCount,
+				"landlord_name": landlord.Fullname,
+			"landlord_phone": landlord.PhoneNumber,
+			"landlord_photo_url": landlord.PhotoURL,})
+
+	}
+
+	return c.JSON(fiber.Map{
+		"recently_viewed_apartments": apartmentDetails,
+	})
+}
+
 func AddToWishlist(c *fiber.Ctx) error {
 	uid, err := GetUIDFromToken(c)
 	if err != nil {
@@ -190,7 +336,10 @@ func FetchwishlistForTenant(c *fiber.Ctx) error {
 				"error":   err.Error(),
 			})
 		}
-
+		var landlord model.User
+			if err := middleware.DBConn.Where("uid = ?", apartment.Uid).First(&landlord).Error; err != nil {
+				continue
+			}
 		// Fetch house rules associated with the apartment
 		var houseRules []model.HouseRule
 		if err := middleware.DBConn.
@@ -253,7 +402,9 @@ func FetchwishlistForTenant(c *fiber.Ctx) error {
 				return ruleNames
 			}(),
 			"inquiries_count": inquiryCount,
-		})
+			"landlord_name": landlord.Fullname,
+			"landlord_phone": landlord.PhoneNumber,
+			"landlord_photo_url": landlord.PhotoURL,})
 	}
 
 	// 🎉 Success Response with wishlist apartments and their details
