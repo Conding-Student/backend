@@ -63,19 +63,17 @@ type Apartment struct {
 	UpdatedAt      time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
-// Landlord Profile (Related to User via Uid)
 type LandlordProfile struct {
-	ID              uint      `gorm:"primaryKey"`
-	Uid             string    `gorm:"not null;uniqueIndex"`
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	Uid             string    `gorm:"not null;" json:"uid"` // Reference to User
 	BusinessName    string    `json:"business_name"`
-	BusinessPermit  string    `json:"business_permit"`                 // Comma-separated URLs
-	VerificationID  string    `json:"verification_id"`                 // URL to government ID image
-	Status          string    `json:"status" gorm:"default:'Pending'"` // Pending/Verified/Rejected
-	RejectionReason string    `json:"rejection_reason"`                // If status is Rejected
-	VerifiedAt      time.Time `json:"verified_at"`                     // When admin verified
-	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-	ExpiresAt       time.Time `gorm:"null"`
+	BusinessPermit  string    `json:"business_permit"`              // Comma-separated URLs
+	VerificationID  string    `json:"verification_id"`              // URL to government ID image
+	RejectionReason string    `gorm:"null" json:"rejection_reason"` // Reason for rejection, if any
+	VerifiedAt      time.Time `json:"verified_at"`                  // Set when admin verifies
+	RejectedAt      time.Time `json:"rejected_at"`                  // Set when admin rejects
+	CreatedAt       time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // Apartment images

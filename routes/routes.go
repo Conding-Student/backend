@@ -48,9 +48,10 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/update-inquiry-status/:uid", landlordcontroller.FetchInquiriesByLandlord) // Approve/Reject a users inquiry
 
 	/////////////////// POST ////////////////////////
-	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment)                        //insert application for landlord apartment
-	app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
-	app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
+	app.Post("/property/add", middleware.AuthMiddleware, landlordcontroller.CreateApartment) //insert application for landlord apartment
+	//app.Post("/create/businessname", middleware.AuthMiddleware, landlordcontroller2.UpdateBusinessName)             // insert business name
+	//app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
+
 	app.Post("/admin/login", admincontroller.LoginHandler)
 	app.Post("/bealandlord", middleware.AuthMiddleware, landlordcontroller.RegisterLandlord) //business permit
 	/////////////////// GET ////////////////////////
@@ -75,8 +76,10 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/user/verify/:id", admincontroller.VerifyUsers)                      // Approve/Reject a users
 
 	//////////////////// POST //////////////////
-	app.Post("/admin/register", admincontroller.RegisterAdmin) // register admin
-	app.Post("/admin/login", admincontroller.LoginHandler)     // login admin //password: yourSecurePassword123
+	app.Post("/admin/register", admincontroller.RegisterAdmin)                            // register admin
+	app.Post("/admin/login", admincontroller.LoginHandler)                                // login admin //password: yourSecurePassword123
+	app.Post("/accept/landlordrequest/:id", landlordcontroller2.VerifyLandlordUsingAdmin) // aacepting landlord request
+	app.Post("/rejecting/landlordrequest/:id", landlordcontroller2.RejectLandlordRequest) // rejecting landlord request
 
 	//////////////////// GET //////////////////
 	app.Get("/adminuserinfo/search", admincontroller2.GetFilteredUserDetailspart2)
@@ -136,95 +139,93 @@ func AppRoutes(app *fiber.App) {
 
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
 
-app.Post("/api/send-notification", func(c *fiber.Ctx) error {
-	type RequestBody struct {
-		FcmToken       string `json:"fcmToken"`
-		Title          string `json:"title"`          // Optional, may be set dynamically
-		Body           string `json:"body"`
-		ConversationId string `json:"conversationId"`
-		SenderId       string `json:"senderId"`
-		Debug          bool   `json:"debug"`
-	}
-
-	var req RequestBody
-	if err := c.BodyParser(&req); err != nil {
-		log.Printf("[Notification] Invalid request: %v", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":   "Invalid request body",
-			"details": err.Error(),
-		})
-	}
-
-	// Validate required fields
-	if req.FcmToken == "" || req.ConversationId == "" {
-		log.Printf("[Notification] Missing fields: Token provided? %t, Conversation ID provided? %t",
-			req.FcmToken != "", req.ConversationId != "")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing required fields (fcmToken and conversationId are required)",
-		})
-	}
-
-	// 🧠 Dynamically set title if not provided
-
-	log.Printf("[Notification] Sending to token: %s | Conversation ID: %s",
-		maskToken(req.FcmToken), req.ConversationId)
-
-	// Call the notification sending logic
-	config.SendPushNotification(
-		req.FcmToken,
-		req.Title,
-		req.Body,
-		req.ConversationId,
-		req.SenderId,
-	)
-
-	var err error = nil
-	if err != nil {
-		log.Printf("[Notification] Failed to send: %v", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to send notification",
-			"details": err.Error(),
-			"debugInfo": fiber.Map{
-				"conversationId": req.ConversationId,
-				"senderId":       req.SenderId,
-				"attemptedAt":    time.Now().Format(time.RFC3339),
-			},
-		})
-	}
-
-	// Success response
-	response := fiber.Map{
-		"status":  "success",
-		"message": "Notification sent successfully",
-		"data": fiber.Map{
-			"conversationId": req.ConversationId,
-			"timestamp":      time.Now().Format(time.RFC3339),
-		},
-	}
-
-	// Optional debug response
-	if req.Debug {
-		response["debug"] = fiber.Map{
-			"fcmToken": maskToken(req.FcmToken),
-			"senderId": req.SenderId,
+	app.Post("/api/send-notification", func(c *fiber.Ctx) error {
+		type RequestBody struct {
+			FcmToken       string `json:"fcmToken"`
+			Title          string `json:"title"` // Optional, may be set dynamically
+			Body           string `json:"body"`
+			ConversationId string `json:"conversationId"`
+			SenderId       string `json:"senderId"`
+			Debug          bool   `json:"debug"`
 		}
-	}
 
-	log.Printf("[Notification] Sent successfully | Conversation ID: %s", req.ConversationId)
-	return c.JSON(response)
-})
+		var req RequestBody
+		if err := c.BodyParser(&req); err != nil {
+			log.Printf("[Notification] Invalid request: %v", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Invalid request body",
+				"details": err.Error(),
+			})
+		}
 
+		// Validate required fields
+		if req.FcmToken == "" || req.ConversationId == "" {
+			log.Printf("[Notification] Missing fields: Token provided? %t, Conversation ID provided? %t",
+				req.FcmToken != "", req.ConversationId != "")
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Missing required fields (fcmToken and conversationId are required)",
+			})
+		}
+
+		// 🧠 Dynamically set title if not provided
+
+		log.Printf("[Notification] Sending to token: %s | Conversation ID: %s",
+			maskToken(req.FcmToken), req.ConversationId)
+
+		// Call the notification sending logic
+		config.SendPushNotification(
+			req.FcmToken,
+			req.Title,
+			req.Body,
+			req.ConversationId,
+			req.SenderId,
+		)
+
+		var err error = nil
+		if err != nil {
+			log.Printf("[Notification] Failed to send: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to send notification",
+				"details": err.Error(),
+				"debugInfo": fiber.Map{
+					"conversationId": req.ConversationId,
+					"senderId":       req.SenderId,
+					"attemptedAt":    time.Now().Format(time.RFC3339),
+				},
+			})
+		}
+
+		// Success response
+		response := fiber.Map{
+			"status":  "success",
+			"message": "Notification sent successfully",
+			"data": fiber.Map{
+				"conversationId": req.ConversationId,
+				"timestamp":      time.Now().Format(time.RFC3339),
+			},
+		}
+
+		// Optional debug response
+		if req.Debug {
+			response["debug"] = fiber.Map{
+				"fcmToken": maskToken(req.FcmToken),
+				"senderId": req.SenderId,
+			}
+		}
+
+		log.Printf("[Notification] Sent successfully | Conversation ID: %s", req.ConversationId)
+		return c.JSON(response)
+	})
 
 	app.Post("/api/track-open/:logId", handlers.TrackNotificationOpenHandler)
 	app.Get("/notifications/:uid", config.GetNotificationsHandler)
 
-	}
-	
-	// Helper to mask sensitive token in logs
-	func maskToken(token string) string {
-		if len(token) < 8 {
-			return "****"
-		}
-		return token[:4] + "..." + token[len(token)-4:]
-	}
+}
 
+// Helper to mask sensitive token in logs
+func maskToken(token string) string {
+	if len(token) < 8 {
+		return "****"
+	}
+	return token[:4] + "..." + token[len(token)-4:]
+}
