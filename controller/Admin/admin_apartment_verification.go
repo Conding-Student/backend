@@ -33,7 +33,7 @@ type VerifyApartmentRequest struct {
 
 // Verify (Approve/Reject) an Apartment with availability and expiration
 func VerifyApartment(c *fiber.Ctx) error {
-	apartmentID := c.Params("id")
+	apartmentID := c.Params("ID")
 	var req struct {
 		Status string `json:"status"`
 	}
