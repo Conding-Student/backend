@@ -45,14 +45,6 @@ func RegisterLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// // Validate request
-	// if err := middleware.Validate.Struct(req); err != nil {
-	// 	return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-	// 		"message": "Validation failed",
-	// 		"errors":  err.Error(),
-	// 	})
-	// }
-
 	// Start database transaction
 	tx := middleware.DBConn.Begin()
 	if tx.Error != nil {
@@ -91,19 +83,19 @@ func RegisterLandlord(c *fiber.Ctx) error {
 	}
 
 	// Check for existing landlord profile
-	var existingProfile model.LandlordProfile
-	if err := tx.Where("uid = ?", uid).First(&existingProfile).Error; err == nil {
-		tx.Rollback()
-		return c.Status(http.StatusConflict).JSON(fiber.Map{
-			"message": "Landlord profile already exists",
-		})
-	} else if err != gorm.ErrRecordNotFound {
-		tx.Rollback()
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Database error checking landlord profile",
-			"error":   err.Error(),
-		})
-	}
+	// var existingProfile model.LandlordProfile
+	// if err := tx.Where("uid = ?", uid).First(&existingProfile).Error; err == nil {
+	// 	tx.Rollback()
+	// 	return c.Status(http.StatusConflict).JSON(fiber.Map{
+	// 		"message": "Landlord profile already exists",
+	// 	})
+	// } else if err != gorm.ErrRecordNotFound {
+	// 	tx.Rollback()
+	// 	return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+	// 		"message": "Database error checking landlord profile",
+	// 		"error":   err.Error(),
+	// 	})
+	// }
 
 	// Upload ID image
 	idImageURL, err := config.UploadImage(req.IDImageURL)
@@ -145,19 +137,14 @@ func RegisterLandlord(c *fiber.Ctx) error {
 		})
 	}
 
-	// // Update user
-	// if err := tx.Model(&user).Updates(map[string]interface{}{
-	// 	"UserType":      "Landlord",
-	// 	"ValidID":       idImageURL,
-	// 	"AccountStatus": "Pending",
-	// 	"UpdatedAt":     time.Now(),
-	// }).Error; err != nil {
-	// 	tx.Rollback()
-	// 	return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-	// 		"message": "Failed to update user",
-	// 		"error":   err.Error(),
-	// 	})
-	// }
+	// Update user status using raw SQL
+	if err := tx.Exec("UPDATE users SET account_status = 'Pending' WHERE uid = ?", uid).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to update user status",
+			"error":   err.Error(),
+		})
+	}
 
 	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
