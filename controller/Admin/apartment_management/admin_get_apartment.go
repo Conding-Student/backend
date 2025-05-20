@@ -40,20 +40,21 @@ func GetFilteredApartments(c *fiber.Ctx) error {
 	// 🏘️ Base query
 	query := middleware.DBConn.Table("apartments").
 		Select("apartments.*, users.fullname as landlord_name").
-		Joins("JOIN users ON users.uid = apartments.user_id")
+		Joins("JOIN users ON users.uid = apartments.user_id").
+		Where("LOWER(apartments.status) <> ?", "deleted")
 
 	// ✅ Apply filters
 	if propertyName != "" {
 		query = query.Where("LOWER(apartments.property_name) LIKE ?", "%"+strings.ToLower(propertyName)+"%")
 	}
 	if propertyType != "" {
-		query = query.Where("apartments.property_type = ?", propertyType)
+		query = query.Where("LOWER(apartments.property_type) LIKE ?", "%"+strings.ToLower(propertyType)+"%")
 	}
 	if rentPrice != "" {
 		query = query.Where("CAST(apartments.rent_price AS TEXT) LIKE ?", "%"+rentPrice+"%")
 	}
 	if status != "" {
-		query = query.Where("apartments.status = ?", status)
+		query = query.Where("LOWER(apartments.status) LIKE ?", "%"+strings.ToLower(status)+"%")
 	}
 	if landlordName != "" {
 		query = query.Where("LOWER(users.fullname) LIKE ?", "%"+strings.ToLower(landlordName)+"%")

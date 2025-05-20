@@ -76,10 +76,11 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/user/verify/:id", admincontroller.VerifyUsers)                      // Approve/Reject a users
 
 	//////////////////// POST //////////////////
-	app.Post("/admin/register", admincontroller.RegisterAdmin)                            // register admin
-	app.Post("/admin/login", admincontroller.LoginHandler)                                // login admin //password: yourSecurePassword123
-	app.Put("/accept/landlordrequest/:uid", landlordcontroller2.VerifyLandlordUsingAdmin) // aacepting landlord request
-	app.Post("/rejecting/landlordrequest/:id", landlordcontroller2.RejectLandlordRequest) // rejecting landlord request
+	app.Post("/admin/register", admincontroller.RegisterAdmin)                               // register admin
+	app.Post("/admin/login", admincontroller.LoginHandler)                                   // login admin //password: yourSecurePassword123
+	app.Put("/accept/landlordrequest/:uid", landlordcontroller2.VerifyLandlordUsingAdmin)    // aacepting landlord request
+	app.Post("/rejecting/landlordrequest/:uid", landlordcontroller2.RejectLandlordRequest)   // rejecting landlord request
+	app.Post("/rejecting/landlordApartment/:id", landlordcontroller2.RejectApartmentRequest) // rejecting landlord request
 
 	//////////////////// GET //////////////////
 	app.Get("/adminuserinfo/search", admincontroller2.GetFilteredUserDetailspart2)

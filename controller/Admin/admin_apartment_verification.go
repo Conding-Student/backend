@@ -116,10 +116,12 @@ type UpdateApartmentRequest struct {
 func UpdateApartmentInfo(c *fiber.Ctx) error {
 	apartmentID := c.Params("id") // Apartment ID from URL
 	var req struct {
-		PropertyName string  `json:"property_name"`
-		PropertyType string  `json:"property_type"`
-		Address      string  `json:"address"`
-		RentPrice    float64 `json:"rent_price"`
+		PropertyName   string  `json:"property_name"`
+		PropertyType   string  `json:"property_type"`
+		RentPrice      float64 `json:"rent_price"`
+		Landmarks      string  `json:"landmarks"`
+		Allowed_gender string  `json:"allowed_gender"`
+		Availability   string  `json:"availability"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -140,8 +142,10 @@ func UpdateApartmentInfo(c *fiber.Ctx) error {
 	// Update the fields
 	apartment.PropertyName = req.PropertyName
 	apartment.PropertyType = req.PropertyType
-	apartment.Address = req.Address
 	apartment.RentPrice = req.RentPrice
+	apartment.Landmarks = req.Landmarks
+	apartment.Allowed_Gender = req.Allowed_gender
+	apartment.Availability = req.Availability
 
 	// Save updates
 	if err := middleware.DBConn.Save(&apartment).Error; err != nil {
@@ -154,10 +158,12 @@ func UpdateApartmentInfo(c *fiber.Ctx) error {
 		"message":      "Apartment information updated successfully",
 		"apartment_id": apartmentID,
 		"updated_info": fiber.Map{
-			"property_name": apartment.PropertyName,
-			"property_type": apartment.PropertyType,
-			"address":       apartment.Address,
-			"rent_price":    apartment.RentPrice,
+			"property_name":  apartment.PropertyName,
+			"property_type":  apartment.PropertyType,
+			"rent_price":     apartment.RentPrice,
+			"landmarks":      apartment.Landmarks,
+			"Allowed_Gender": apartment.Allowed_Gender,
+			"Availability":   apartment.Availability,
 		},
 	})
 }

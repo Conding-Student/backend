@@ -52,6 +52,7 @@ type Apartment struct {
 	RentPrice      float64    `gorm:"not null"`
 	LocationLink   string     `gorm:"not null"`
 	Landmarks      string     `gorm:"not null"`
+	Message        string     `gorm:"not null;default:'Apartment Application'" json:"message"`
 	Status         string     `gorm:"not null;default:'Pending';index:idx_status_availability"`
 	Latitude       float64    `gorm:"null;index:idx_geo"`
 	Longitude      float64    `gorm:"null;index:idx_geo"`

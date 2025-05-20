@@ -74,6 +74,14 @@ func RegisterLandlord(c *fiber.Ctx) error {
 		})
 	}
 
+	// New: Check if account status is already Pending
+	if user.AccountStatus == "Pending" {
+		tx.Rollback()
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"message": "You already have a pending registration request",
+		})
+	}
+
 	// Check if already a landlord
 	if user.UserType == "Landlord" {
 		tx.Rollback()
@@ -81,21 +89,6 @@ func RegisterLandlord(c *fiber.Ctx) error {
 			"message": "User is already registered as a landlord",
 		})
 	}
-
-	// Check for existing landlord profile
-	// var existingProfile model.LandlordProfile
-	// if err := tx.Where("uid = ?", uid).First(&existingProfile).Error; err == nil {
-	// 	tx.Rollback()
-	// 	return c.Status(http.StatusConflict).JSON(fiber.Map{
-	// 		"message": "Landlord profile already exists",
-	// 	})
-	// } else if err != gorm.ErrRecordNotFound {
-	// 	tx.Rollback()
-	// 	return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-	// 		"message": "Database error checking landlord profile",
-	// 		"error":   err.Error(),
-	// 	})
-	// }
 
 	// Upload ID image
 	idImageURL, err := config.UploadImage(req.IDImageURL)
