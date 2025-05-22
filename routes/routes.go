@@ -56,7 +56,7 @@ func AppRoutes(app *fiber.App) {
 	//app.Post("/create/businesspermit", middleware.AuthMiddleware, landlordcontroller2.SetUpdateBusinessPermitImage) //business permit
 
 	app.Post("/admin/login", admincontroller.LoginHandler)
-	app.Post("/bealandlord", middleware.AuthMiddleware, landlordcontroller.RegisterLandlord) //business permit
+	app.Post("/bealandlord", middleware.AuthMiddleware, landlordcontroller.RegisterLandlord)                    //business permit
 	app.Get("/property/get", middleware.AuthMiddleware, landlordcontroller.FetchApartmentsByLandlord)           //Property get by landlord
 	app.Get("/tenants/inquiry/display", middleware.AuthMiddleware, landlordcontroller.FetchInquiriesByLandlord) // Fetch tenants inquiry
 
@@ -78,10 +78,11 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/user/verify/:id", admincontroller.VerifyUsers)                      // Approve/Reject a users
 
 	//////////////////// POST //////////////////
-	app.Post("/admin/register", admincontroller.RegisterAdmin)                            // register admin
-	app.Post("/admin/login", admincontroller.LoginHandler)                                // login admin //password: yourSecurePassword123
-	app.Post("/accept/landlordrequest/:id", landlordcontroller2.VerifyLandlordUsingAdmin) // aacepting landlord request
-	app.Post("/rejecting/landlordrequest/:id", landlordcontroller2.RejectLandlordRequest) // rejecting landlord request
+	app.Post("/admin/register", admincontroller.RegisterAdmin)                               // register admin
+	app.Post("/admin/login", admincontroller.LoginHandler)                                   // login admin //password: yourSecurePassword123
+	app.Put("/accept/landlordrequest/:uid", landlordcontroller2.VerifyLandlordUsingAdmin)    // aacepting landlord request
+	app.Post("/rejecting/landlordrequest/:uid", landlordcontroller2.RejectLandlordRequest)   // rejecting landlord request
+	app.Post("/rejecting/landlordApartment/:id", landlordcontroller2.RejectApartmentRequest) // rejecting landlord request
 
 	//////////////////// GET //////////////////
 	app.Get("/adminuserinfo/search", admincontroller2.GetFilteredUserDetailspart2)
@@ -113,7 +114,7 @@ func AppRoutes(app *fiber.App) {
 		app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
 	app.Post("/signup", authcontroller.Signup) // Register a new us
 	//////////////////// GET //////////////////
-	app.Get ("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant)//http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
+	app.Get("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant) //http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
 	app.Get("/allapartments/search", all.SearchApartments)
 	app.Get("/all/apartmentfulldetails/:id", all.FetchSingleApartmentDetails) // view all of the specific apartment details
 
@@ -128,7 +129,7 @@ func AppRoutes(app *fiber.App) {
 	// app.Post("/tenant/delete-inquiry", middleware.AuthMiddleware, tenantscontroller.DeleteInquiryAfterViewingNotification)
 	app.Post("/add/wishlist", middleware.AuthMiddleware, tenantscontroller.AddToWishlist)
 	app.Post("/add/recentlyviewed", middleware.AuthMiddleware, tenantscontroller.AddToRecentlyViewed)
-    app.Get("/get/recently-viewed", middleware.AuthMiddleware, controller.FetchRecentlyViewed)	
+	app.Get("/get/recently-viewed", middleware.AuthMiddleware, controller.FetchRecentlyViewed)
 	//////////////////// GET //////////////////
 	// app.Get("/tenant/inquiries/count-status", middleware.AuthMiddleware, tenantscontroller.CountAcceptedOrRejectedInquiries)
 	// app.Get("/tenant/inquiries/get-notification", middleware.AuthMiddleware, tenantscontroller.GetAllinquiries) // Display all inquiries

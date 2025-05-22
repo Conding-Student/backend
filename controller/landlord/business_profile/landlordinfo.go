@@ -105,11 +105,11 @@ func UpdateContactInfo(c *fiber.Ctx) error {
 }
 
 func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
-	// Get landlord profile ID from params
-	id := c.Params("id")
-	if id == "" {
+	// Get UID from params
+	uid := c.Params("uid")
+	if uid == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Missing landlord profile ID parameter",
+			"message": "Missing user UID parameter",
 		})
 	}
 
@@ -127,13 +127,13 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 		}
 	}()
 
-	// Get landlord profile first to find associated UID
+	// Get latest landlord profile for the UID
 	var landlordProfile model.LandlordProfile
-	if err := tx.Where("id = ?", id).First(&landlordProfile).Error; err != nil {
+	if err := tx.Where("uid = ?", uid).Order("created_at DESC").First(&landlordProfile).Error; err != nil {
 		tx.Rollback()
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"message": "Landlord profile not found",
+				"message": "No landlord profile found for the provided user UID",
 			})
 		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -152,11 +152,11 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 
 	// Check if user exists and current status
 	var user model.User
-	if err := tx.Where("uid = ?", landlordProfile.Uid).First(&user).Error; err != nil {
+	if err := tx.Where("uid = ?", uid).First(&user).Error; err != nil {
 		tx.Rollback()
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"message": "User not found for this landlord profile",
+				"message": "User not found for this UID",
 			})
 		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -172,17 +172,10 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 			"message": "User is already a verified landlord",
 		})
 	}
-	// Prevent verification if already a verified landlord
-	if user.UserType == "Landlord" && user.AccountStatus == "Verified" {
-		tx.Rollback()
-		return c.Status(http.StatusConflict).JSON(fiber.Map{
-			"message": "User is already a verified landlord",
-		})
-	}
 
 	// Update user account status and type
 	if err := tx.Model(&model.User{}).
-		Where("uid = ?", landlordProfile.Uid).
+		Where("uid = ?", uid).
 		Updates(map[string]interface{}{
 			"account_status": "Verified",
 			"user_type":      "Landlord",
@@ -194,14 +187,14 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update landlord profile
+	// Update landlord profile using the retrieved ID
 	updateData := map[string]interface{}{
 		"verified_at":      time.Now(),
 		"rejection_reason": nil, // Clear any previous rejection
 	}
 
 	if err := tx.Model(&model.LandlordProfile{}).
-		Where("id = ?", id).
+		Where("id = ?", landlordProfile.ID).
 		Updates(updateData).Error; err != nil {
 		tx.Rollback()
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -221,8 +214,8 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Landlord verified successfully",
 		"data": fiber.Map{
-			"profile_id":     id,
-			"uid":            landlordProfile.Uid,
+			"profile_id":     landlordProfile.ID,
+			"uid":            uid,
 			"account_status": "Verified",
 			"user_type":      "Landlord",
 			"verified_at":    time.Now().Format(time.RFC3339),
@@ -232,15 +225,15 @@ func VerifyLandlordUsingAdmin(c *fiber.Ctx) error {
 
 // RejectionRequest represents the payload for landlord rejection
 type RejectionRequest struct {
-	RejectionReason string `json:"rejection_reason" validate:"required"`
+	RejectionReason string `json:"rejection_reason" validate:"required,min=1"`
 }
 
 func RejectLandlordRequest(c *fiber.Ctx) error {
-	// Get landlord profile ID from params
-	id := c.Params("id")
-	if id == "" {
+	// Get user UID from params
+	uid := c.Params("uid")
+	if uid == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Missing landlord profile ID parameter",
+			"message": "Missing user UID parameter",
 		})
 	}
 
@@ -250,13 +243,6 @@ func RejectLandlordRequest(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request format",
 			"error":   err.Error(),
-		})
-	}
-
-	// Validate rejection reason
-	if strings.TrimSpace(req.RejectionReason) == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Rejection reason is required",
 		})
 	}
 
@@ -274,24 +260,32 @@ func RejectLandlordRequest(c *fiber.Ctx) error {
 		}
 	}()
 
-	// Check if landlord profile exists
+	// Get latest landlord profile for the UID
 	var landlordProfile model.LandlordProfile
-	if err := tx.Where("id = ?", id).First(&landlordProfile).Error; err != nil {
+	if err := tx.Where("uid = ?", uid).Order("created_at DESC").First(&landlordProfile).Error; err != nil {
 		tx.Rollback()
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"message": "Landlord profile not found",
+				"message": "No landlord profile found for the provided user UID",
 			})
 		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Database error checking landlord profile",
+			"message": "Database error retrieving landlord profile",
 			"error":   err.Error(),
 		})
 	}
 
-	// Update user account status to Unverified using the UID from landlord profile
+	// Check if already rejected to prevent duplicate rejections
+	if !landlordProfile.RejectedAt.IsZero() {
+		tx.Rollback()
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"message": "This landlord profile was already rejected",
+		})
+	}
+
+	// Update user account status to Unverified
 	if err := tx.Model(&model.User{}).
-		Where("uid = ?", landlordProfile.Uid).
+		Where("uid = ?", uid).
 		Update("account_status", "Unverified").Error; err != nil {
 		tx.Rollback()
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -300,15 +294,15 @@ func RejectLandlordRequest(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update landlord profile with rejection details using the profile ID
+	// Update landlord profile with rejection details
 	updateData := map[string]interface{}{
 		"rejection_reason": req.RejectionReason,
-		"verified_at":      time.Time{}, // Reset verification time
-		"rejected_at":      time.Now(),  // Set rejection timestamp
+		"verified_at":      nil,
+		"rejected_at":      time.Now(),
 	}
 
 	if err := tx.Model(&model.LandlordProfile{}).
-		Where("id = ?", id).
+		Where("id = ?", landlordProfile.ID).
 		Updates(updateData).Error; err != nil {
 		tx.Rollback()
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -328,11 +322,104 @@ func RejectLandlordRequest(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Landlord registration rejected",
 		"data": fiber.Map{
-			"profile_id":       id,
-			"uid":              landlordProfile.Uid,
+			"profile_id":       landlordProfile.ID,
+			"uid":              uid,
 			"account_status":   "Unverified",
 			"rejection_reason": req.RejectionReason,
 			"rejected_at":      time.Now().Format(time.RFC3339),
+		},
+	})
+}
+
+// APARTMENT REJECTION
+// RejectionRequest represents the payload for landlord rejection
+func RejectApartmentRequest(c *fiber.Ctx) error {
+	// Get apartment ID from params
+	apartmentID := c.Params("id")
+	if apartmentID == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Missing apartment ID parameter",
+		})
+	}
+
+	// Parse rejection reason from request body
+	var req RejectionRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request format",
+			"error":   err.Error(),
+		})
+	}
+
+	// Start database transaction
+	tx := middleware.DBConn.Begin()
+	if tx.Error != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to start database transaction",
+			"error":   tx.Error.Error(),
+		})
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Get apartment by ID
+	var apartment model.Apartment
+	if err := tx.Where("id = ?", apartmentID).First(&apartment).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"message": "Apartment not found",
+			})
+		}
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error retrieving apartment",
+			"error":   err.Error(),
+		})
+	}
+
+	// Check if already rejected
+	if apartment.Status == "Rejected" {
+		tx.Rollback()
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"message": "This apartment was already rejected",
+		})
+	}
+
+	// Update apartment with rejection details
+	updateData := map[string]interface{}{
+		"message": req.RejectionReason,
+		"status":  "Rejected",
+		// Add any other fields you want to update, like rejected_at if your table has that column
+		// "rejected_at": time.Now(),
+	}
+
+	if err := tx.Model(&model.Apartment{}).
+		Where("id = ?", apartmentID).
+		Updates(updateData).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to update apartment",
+			"error":   err.Error(),
+		})
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to commit transaction",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Apartment request rejected",
+		"data": fiber.Map{
+			"apartment_id":     apartmentID,
+			"rejection_reason": req.RejectionReason,
+			"updated_at":       time.Now().Format(time.RFC3339),
 		},
 	})
 }

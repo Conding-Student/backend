@@ -158,7 +158,7 @@ func GetFilteredUserDetailspart2(c *fiber.Ctx) error {
 
 	// Base query with account status filter
 	query := middleware.DBConn.Table("users").
-		Select("uid, email, phone_number, fullname, address, valid_id, account_status, user_type").
+		Select("id, uid, email, phone_number, fullname, address, valid_id, account_status, user_type").
 		Where("account_status IN ?", []string{"Unverified", "Pending", "Verified"})
 
 	// Apply filters
@@ -202,6 +202,7 @@ func GetFilteredUserDetailspart2(c *fiber.Ctx) error {
 
 	// Fetch paginated results
 	var users []struct {
+		ID            int    `json:"id" gorm:"column:id"` // Explicitly map to the "id" column
 		UID           string `json:"uid"`
 		Email         string `json:"email"`
 		PhoneNumber   string `json:"phone_number"`

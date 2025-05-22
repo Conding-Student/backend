@@ -27,7 +27,7 @@ func GetPendingUsers(c *fiber.Ctx) error {
 }
 
 type VerifyLandlordRequest struct {
-	Status string `json:"account_status"` // Expected values: "Approved" or "Rejected"
+	Status string `json:"account_status"` // Expected values: "Verified" or "Unverified"
 }
 
 // ✅ Verify (Approve/Reject) a user
@@ -42,9 +42,9 @@ func VerifyUsers(c *fiber.Ctx) error {
 	}
 
 	// Check if the provided status is valid
-	if req.Status != "Approved" && req.Status != "Rejected" {
+	if req.Status != "Verified" && req.Status != "Unverified" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid status. Use 'Approved' or 'Rejected'.",
+			"error": "Invalid status. Use 'Verified' or 'Unverified'.",
 		})
 	}
 
