@@ -182,6 +182,7 @@ type RentalAgreement struct {
     CreatedAt        time.Time
     UpdatedAt        time.Time
 }
+
 // Rating model
 type Rating struct {
     ID          uint      `gorm:"primaryKey"`

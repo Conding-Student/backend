@@ -144,14 +144,7 @@ func AppRoutes(app *fiber.App) {
 
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
 
-
-
-
-
-
-
-
-
+	
 	app.Post("/api/send-notification", func(c *fiber.Ctx) error {
 		type RequestBody struct {
 			FcmToken       string `json:"fcmToken"`
@@ -193,20 +186,6 @@ func AppRoutes(app *fiber.App) {
 			req.ConversationId,
 			req.SenderId,
 		)
-
-		var err error = nil
-		if err != nil {
-			log.Printf("[Notification] Failed to send: %v", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Failed to send notification",
-				"details": err.Error(),
-				"debugInfo": fiber.Map{
-					"conversationId": req.ConversationId,
-					"senderId":       req.SenderId,
-					"attemptedAt":    time.Now().Format(time.RFC3339),
-				},
-			})
-		}
 
 		// Success response
 		response := fiber.Map{
