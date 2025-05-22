@@ -95,6 +95,7 @@ func AppRoutes(app *fiber.App) {
 	app.Get("/apartments/pending", admincontroller.GetPendingApartments)                                      // Fetch unverified apartments
 	app.Get("/user/pending", admincontroller.GetPendingUsers)                                                 // Fetch unverified users
 	app.Get("/admin/apartmentfilter", admincontroller2.Apartmentfilteradmin)
+	app.Get("/landlord/profileid/:uid", admincontroller2.GetLatestLandlordID)
 
 	//////////////////// DELETE //////////////////
 	app.Delete("/admin/apartment/delete/:id", admincontroller3.DeleteApartmentByID) // Delete speific apartment
