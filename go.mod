@@ -12,7 +12,10 @@ require (
 	gorm.io/gorm v1.25.12
 )
 
-require github.com/gofiber/utils v0.0.10 // indirect
+require (
+	github.com/gofiber/utils v0.0.10 // indirect
+	google.golang.org/appengine v1.6.8 // indirect
+)
 
 require (
 	cel.dev/expr v0.19.2 // indirect
@@ -69,6 +72,9 @@ require (
 )
 
 require (
+	firebase.google.com/go v3.13.0+incompatible
+	github.com/go-chi/chi v1.5.5
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/gofiber/fiber v1.14.6
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.2

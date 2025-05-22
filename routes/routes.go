@@ -39,6 +39,8 @@ func AppRoutes(app *fiber.App) {
 	go landlordcontroller.ManageApartmentExpirations()
 	go landlordcontroller.ManageExpiredDeletions()
 
+
+
 	//////////////////// Landlord //////////////////
 
 	/////////////////// PUT ////////////////////////
@@ -108,7 +110,8 @@ func AppRoutes(app *fiber.App) {
 
 	//////////////////// POST //////////////////
 	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
-
+		app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
+	app.Post("/signup", authcontroller.Signup) // Register a new us
 	//////////////////// GET //////////////////
 	app.Get ("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant)//http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
 	app.Get("/allapartments/search", all.SearchApartments)
@@ -138,6 +141,14 @@ func AppRoutes(app *fiber.App) {
 	//////////////////// Tenant //////////////////
 
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
+
+
+
+
+
+
+
+
 
 	app.Post("/api/send-notification", func(c *fiber.Ctx) error {
 		type RequestBody struct {
@@ -219,6 +230,18 @@ func AppRoutes(app *fiber.App) {
 
 	app.Post("/api/track-open/:logId", handlers.TrackNotificationOpenHandler)
 	app.Get("/notifications/:uid", config.GetNotificationsHandler)
+
+
+app.Get("/unverifyAndResend/:uid", config.UnverifyAndResendHandler)
+
+	ratingGroup := app.Group("/api/ratings")
+	ratingGroup.Post("/confirm",  middleware.AuthMiddleware, controller.ConfirmRental)
+	ratingGroup.Post("/submit",  middleware.AuthMiddleware, controller.SubmitRating)
+	ratingGroup.Get("/apartment/:id",  middleware.AuthMiddleware, controller.GetApartmentRatings)
+	ratingGroup.Get("/tenant/:id",  middleware.AuthMiddleware, controller.GetTenantIDByRentalAgreementID)
+	ratingGroup.Get("/check", middleware.AuthMiddleware, controller.CheckRatingEligibility)
+	app.Get("/api/inquiries/has-inquiry", middleware.AuthMiddleware, controller.CheckHasInquiry)
+
 
 }
 

@@ -149,3 +149,4 @@ func saveOrUpdateUser(uid, email string) (string, error) {
 
 	return "", fmt.Errorf("database error: %v", err)
 }
+

@@ -3,8 +3,6 @@ package controller
 import (
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
-	"log"
-	"net/http"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,34 +28,24 @@ func CalculateAge(birthday string) (int, error) {
 	return age, nil
 }
 
-func SaveUser(c *fiber.Ctx) error {
+func Signup(c *fiber.Ctx) error {
 	var user model.User
 	if err := c.BodyParser(&user); err != nil {
-		log.Println("Error parsing request body:", err)
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request",
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Cannot parse JSON",
 		})
 	}
-
-
-	// Check if user already exists
-	var existingUser model.User
-	result := middleware.DBConn.Where("email = ?", user.Email).First(&existingUser)
-	if result.RowsAffected > 0 {
-		return c.Status(http.StatusConflict).JSON(fiber.Map{
-			"error": "User already exists",
-		})
-	}
-
-	// Save user to database with age
-	if err := middleware.DBConn.Create(&user).Error; err != nil {
-		log.Println("Error saving user:", err)
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+	
+	// Database operation
+	result := middleware.DBConn.Create(&user)
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to save user",
 		})
 	}
-
-	return c.Status(http.StatusCreated).JSON(fiber.Map{
+	
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
 		"message": "User saved successfully",
 		"user":    user,
 	})

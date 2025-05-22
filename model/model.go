@@ -26,8 +26,8 @@ type AdminToken struct {
 
 type User struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement"`
-	Uid           string    `gorm:"uniqueIndex"` // Unique user identifier
-	Email         string    `gorm:"unique"`
+	Uid           string    `json:"uid" gorm:"uniqueIndex"` // Unique user identifier
+	Email         string    `json:"email" gorm:"unique"`
 	PhoneNumber   string    `json:"phone_number"`
 	Fullname      string    `json:"fullname"`
 	Age           int       `json:"age"`
@@ -160,4 +160,36 @@ type RecentlyViewed struct {
 	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
 	ExpiresAt   time.Time `gorm:"null"`
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
+}
+
+
+
+// RentalAgreement model
+type RentalAgreement struct {
+    ID               uint       `gorm:"primaryKey"`
+    ApartmentID      uint       `gorm:"not null"`
+    Apartment        Apartment  `gorm:"foreignKey:ApartmentID"`
+    TenantID         string     `gorm:"not null"` // Using UID to match your User model
+    Tenant           User       `gorm:"foreignKey:TenantID;references:Uid"`
+    LandlordID       string     `gorm:"not null"` // Using UID to match your User model
+    Landlord         User       `gorm:"foreignKey:LandlordID;references:Uid"`
+    StartDate        time.Time  `gorm:"not null"`
+    EndDate          *time.Time `gorm:"null"`
+    IsActive         bool       `gorm:"default:true"`
+    TenantConfirmed  bool       `gorm:"default:false"`
+    LandlordConfirmed bool      `gorm:"default:false"`
+    CreatedAt        time.Time
+    UpdatedAt        time.Time
+}
+// Rating model
+type Rating struct {
+    ID          uint      `gorm:"primaryKey"`
+    ApartmentID uint      `gorm:"not null"`
+    Apartment   Apartment `gorm:"foreignKey:ApartmentID"`
+    TenantID    string    `gorm:"not null"` // Using UID to match your User model
+    Tenant      User      `gorm:"foreignKey:TenantID;references:Uid"`
+    Rating      int       `gorm:"check:rating>=1 AND rating<=5"`
+    Comment     string    `gorm:"type:text"`
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
 }

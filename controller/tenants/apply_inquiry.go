@@ -2,8 +2,10 @@
 package controller
 
 import (
+	"fmt"
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -109,4 +111,65 @@ func createInquiryRecord(tenantUID string, req CreateInquiryRequest) (*model.Inq
     }
 
     return inquiry, middleware.DBConn.Create(inquiry).Error
+}
+
+func HasInquiryToApartment(tenantUID string, apartmentID uint) (bool, error) {
+    var count int64
+    err := middleware.DBConn.Model(&model.Inquiry{}).
+        Where("tenant_uid = ? AND property_id = ?", tenantUID, apartmentID).
+        Count(&count).Error
+    return count > 0, err
+}
+
+
+func CheckHasInquiry(c *fiber.Ctx) error {
+    fmt.Println("🔍 Checking for existing inquiry...")
+
+    // Step 1: Auth check
+    tenantUID, err := GetUIDFromToken(c)
+    if err != nil {
+        fmt.Println("❌ Unauthorized: Failed to extract UID from token:", err)
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "error": "Unauthorized",
+        })
+    }
+    fmt.Println("✅ Tenant UID:", tenantUID)
+
+    // Step 2: Parse query param
+    apartmentIDStr := c.Query("apartment_id")
+    if apartmentIDStr == "" {
+        fmt.Println("❌ Missing apartment_id query param")
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "apartment_id is required",
+        })
+    }
+
+    apartmentID, err := strconv.Atoi(apartmentIDStr)
+    if err != nil || apartmentID <= 0 {
+        fmt.Println("❌ Invalid apartment_id:", apartmentIDStr)
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "Invalid apartment_id",
+        })
+    }
+    fmt.Println("✅ Apartment ID:", apartmentID)
+
+    // Step 3: Check inquiry in DB
+    var count int64
+    err = middleware.DBConn.Model(&model.Inquiry{}).
+        Where("tenant_uid = ? AND property_id = ?", tenantUID, apartmentID).
+        Count(&count).Error
+
+    if err != nil {
+        fmt.Println("❌ DB error while checking inquiry:", err)
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "System error",
+        })
+    }
+
+    fmt.Printf("📊 Inquiry count for tenant %s and property %d: %d\n", tenantUID, apartmentID, count)
+
+    // Step 4: Return result
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "has_inquiry": count > 0,
+    })
 }

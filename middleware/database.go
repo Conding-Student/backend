@@ -41,8 +41,19 @@ func ConnectDB() bool {
 		&model.ApartmentHouseRule{},
 		&model.Wishlist{},
 		&model.RecentlyViewed{},
+		&model.RentalAgreement{},
+		&model.Rating{},
 		// &model.AdminToken{},
 	)
+	
+	// ✅ Create unique index (outside AutoMigrate)
+	if err := DBConn.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_apartment_tenant 
+		ON rental_agreements (apartment_id, tenant_id)
+	`).Error; err != nil {
+		log.Fatal("❌ Failed to create unique index:", err)
+		return true
+	}
 
 	if err != nil {
 		log.Fatal("❌ Migration failed:", err)
