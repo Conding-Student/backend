@@ -14,6 +14,31 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func GetLatestLandlordID(c *fiber.Ctx) error {
+	var landlordProfile model.LandlordProfile
+
+	// Get UID from request parameters
+	uid := c.Params("uid")
+
+	// 🔍 Query latest landlord profile with selected fields
+	if err := middleware.DBConn.
+		Select("id, business_permit, verification_id").
+		Where("uid = ?", uid).
+		Order("created_at DESC").
+		First(&landlordProfile).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to retrieve landlord profile",
+			"error":   err.Error(),
+		})
+	}
+
+	// ✅ Success response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Latest landlord profile retrieved successfully",
+		"profile": landlordProfile,
+	})
+}
+
 func GetFilteredUserDetails(c *fiber.Ctx) error {
 	// 🔍 Filters
 	userType := c.Query("user_type", "")
