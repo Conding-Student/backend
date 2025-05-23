@@ -1,10 +1,13 @@
 package controller
 
 import (
+	"errors"
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
 	"log"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -61,8 +64,6 @@ func AddToRecentlyViewed(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Apartment added to recently viewed"})
 }
-
-
 
 func FetchRecentlyViewed(c *fiber.Ctx) error {
 	uid, err := GetUIDFromToken(c)
@@ -150,10 +151,10 @@ func FetchRecentlyViewed(c *fiber.Ctx) error {
 				"error":   err.Error(),
 			})
 		}
-var landlord model.User
-			if err := middleware.DBConn.Where("uid = ?", apartment.Uid).First(&landlord).Error; err != nil {
-				continue
-			}
+		var landlord model.User
+		if err := middleware.DBConn.Where("uid = ?", apartment.Uid).First(&landlord).Error; err != nil {
+			continue
+		}
 		// Inquiry count
 		var inquiryCount int64
 		if err := middleware.DBConn.
@@ -196,10 +197,10 @@ var landlord model.User
 				}
 				return rules
 			}(),
-			"inquiries_count": inquiryCount,
-				"landlord_name": landlord.Fullname,
-			"landlord_phone": landlord.PhoneNumber,
-			"landlord_photo_url": landlord.PhotoURL,})
+			"inquiries_count":    inquiryCount,
+			"landlord_name":      landlord.Fullname,
+			"landlord_phone":     landlord.PhoneNumber,
+			"landlord_photo_url": landlord.PhotoURL})
 
 	}
 
@@ -279,6 +280,28 @@ func FetchwishlistForTenant(c *fiber.Ctx) error {
 			"message": "Unauthorized: Missing or invalid JWT",
 		})
 	}
+	// Check if user is a Landlord
+	var userType string
+	if err := middleware.DBConn.Model(&model.User{}).
+		Where("uid = ?", uid).
+		Select("user_type").
+		First(&userType).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "User not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Database error: Unable to retrieve user type",
+			"error":   err.Error(),
+		})
+	}
+
+	if userType == "Landlord" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "Access denied: This function is not available for landlords",
+		})
+	}
 
 	// Step 1: Retrieve all wishlist items for this tenant
 	var wishlistItems []model.Wishlist
@@ -337,9 +360,9 @@ func FetchwishlistForTenant(c *fiber.Ctx) error {
 			})
 		}
 		var landlord model.User
-			if err := middleware.DBConn.Where("uid = ?", apartment.Uid).First(&landlord).Error; err != nil {
-				continue
-			}
+		if err := middleware.DBConn.Where("uid = ?", apartment.Uid).First(&landlord).Error; err != nil {
+			continue
+		}
 		// Fetch house rules associated with the apartment
 		var houseRules []model.HouseRule
 		if err := middleware.DBConn.
@@ -401,10 +424,10 @@ func FetchwishlistForTenant(c *fiber.Ctx) error {
 				}
 				return ruleNames
 			}(),
-			"inquiries_count": inquiryCount,
-			"landlord_name": landlord.Fullname,
-			"landlord_phone": landlord.PhoneNumber,
-			"landlord_photo_url": landlord.PhotoURL,})
+			"inquiries_count":    inquiryCount,
+			"landlord_name":      landlord.Fullname,
+			"landlord_phone":     landlord.PhoneNumber,
+			"landlord_photo_url": landlord.PhotoURL})
 	}
 
 	// 🎉 Success Response with wishlist apartments and their details

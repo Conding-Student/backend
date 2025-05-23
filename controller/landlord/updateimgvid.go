@@ -255,14 +255,16 @@ func isValidAvailability(a string) bool {
 }
 
 func ManageApartmentExpirations() {
-	ticker := time.NewTicker(1 * time.Minute) // Check every minute instead of hourly
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for {
 		<-ticker.C
 		currentTime := time.Now()
+		fmt.Printf("[%s] Starting expiration availability cycle\n", currentTime.Format(time.RFC3339))
+		startTime := currentTime
 
-		// Directly update using a single query
+		// Update expired apartments
 		result := middleware.DBConn.Model(&model.Apartment{}).
 			Where("expires_at < ? AND availability = ?", currentTime, "Available").
 			Updates(map[string]interface{}{
@@ -270,12 +272,24 @@ func ManageApartmentExpirations() {
 				"expires_at":   gorm.Expr("NULL"),
 			})
 
+		// Handle results and errors
 		if result.Error != nil {
-			fmt.Printf("Error updating expired apartments: %v\n", result.Error)
-		} else if result.RowsAffected > 0 {
-			fmt.Printf("[%s] Expired %d apartments\n",
-				currentTime.Format(time.RFC3339), result.RowsAffected)
+			fmt.Printf("[%s] Error updating availability of apartments: %v\n",
+				currentTime.Format(time.RFC3339), result.Error)
+		} else {
+			if result.RowsAffected > 0 {
+				fmt.Printf("[%s] Expired %d apartments, turning it into Not Available\n",
+					currentTime.Format(time.RFC3339), result.RowsAffected)
+			} else {
+				fmt.Printf("[%s] No expired apartments availability found\n",
+					currentTime.Format(time.RFC3339))
+			}
 		}
+
+		// Always log cycle duration
+		duration := time.Since(startTime)
+		fmt.Printf("[%s] Cycle duration: %s\n",
+			currentTime.Format(time.RFC3339), duration)
 	}
 }
 

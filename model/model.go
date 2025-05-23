@@ -67,6 +67,7 @@ type Apartment struct {
 type LandlordProfile struct {
 	ID              uint      `gorm:"primaryKey" json:"id"`
 	Uid             string    `gorm:"not null;" json:"uid"` // Reference to User
+	Status          string    `gorm:"null"`
 	BusinessName    string    `json:"business_name"`
 	BusinessPermit  string    `json:"business_permit"`              // Comma-separated URLs
 	VerificationID  string    `json:"verification_id"`              // URL to government ID image
@@ -135,7 +136,8 @@ type ApartmentHouseRule struct {
 
 type Wishlist struct {
 	ID          uint      `gorm:"primaryKey"`
-	UID         string    `gorm:"not null"`                             // Tenant's UID
+	UID         string    `gorm:"not null"` // Tenant's UID
+	Status      string    `gorm:"null"`
 	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
 	CreatedAt   time.Time `json:"created_at"`
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
@@ -157,41 +159,42 @@ type NotificationLog struct {
 
 type RecentlyViewed struct {
 	ID          uint      `gorm:"primaryKey"`
-	UID         string    `gorm:"not null"`                             // Tenant's UID
+	UID         string    `gorm:"not null"` // Tenant's UID
+	Status      string    `gorm:"null"`
 	ApartmentID uint      `gorm:"not null;constraint:OnDelete:CASCADE"` // Foreign key referencing the Apartment model's ID
 	ExpiresAt   time.Time `gorm:"null"`
 	Apartment   Apartment `gorm:"foreignKey:ApartmentID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
-
-
 // RentalAgreement model
 type RentalAgreement struct {
-    ID               uint       `gorm:"primaryKey"`
-    ApartmentID      uint       `gorm:"not null"`
-    Apartment        Apartment  `gorm:"foreignKey:ApartmentID"`
-    TenantID         string     `gorm:"not null"` // Using UID to match your User model
-    Tenant           User       `gorm:"foreignKey:TenantID;references:Uid"`
-    LandlordID       string     `gorm:"not null"` // Using UID to match your User model
-    Landlord         User       `gorm:"foreignKey:LandlordID;references:Uid"`
-    StartDate        time.Time  `gorm:"not null"`
-    EndDate          *time.Time `gorm:"null"`
-    IsActive         bool       `gorm:"default:true"`
-    TenantConfirmed  bool       `gorm:"default:false"`
-    LandlordConfirmed bool      `gorm:"default:false"`
-    CreatedAt        time.Time
-    UpdatedAt        time.Time
+	ID                uint       `gorm:"primaryKey"`
+	ApartmentID       uint       `gorm:"not null"`
+	Apartment         Apartment  `gorm:"foreignKey:ApartmentID"`
+	Status            string     `gorm:"null"`
+	TenantID          string     `gorm:"not null"` // Using UID to match your User model
+	Tenant            User       `gorm:"foreignKey:TenantID;references:Uid"`
+	LandlordID        string     `gorm:"not null"` // Using UID to match your User model
+	Landlord          User       `gorm:"foreignKey:LandlordID;references:Uid"`
+	StartDate         time.Time  `gorm:"not null"`
+	EndDate           *time.Time `gorm:"null"`
+	IsActive          bool       `gorm:"default:true"`
+	TenantConfirmed   bool       `gorm:"default:false"`
+	LandlordConfirmed bool       `gorm:"default:false"`
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 // Rating model
 type Rating struct {
-    ID          uint      `gorm:"primaryKey"`
-    ApartmentID uint      `gorm:"not null"`
-    Apartment   Apartment `gorm:"foreignKey:ApartmentID"`
-    TenantID    string    `gorm:"not null"` // Using UID to match your User model
-    Tenant      User      `gorm:"foreignKey:TenantID;references:Uid"`
-    Rating      int       `gorm:"check:rating>=1 AND rating<=5"`
-    Comment     string    `gorm:"type:text"`
-    CreatedAt   time.Time
-    UpdatedAt   time.Time
+	ID          uint      `gorm:"primaryKey"`
+	ApartmentID uint      `gorm:"not null"`
+	Apartment   Apartment `gorm:"foreignKey:ApartmentID"`
+	Status      string    `gorm:"null"`
+	TenantID    string    `gorm:"not null"` // Using UID to match your User model
+	Tenant      User      `gorm:"foreignKey:TenantID;references:Uid"`
+	Rating      int       `gorm:"check:rating>=1 AND rating<=5"`
+	Comment     string    `gorm:"type:text"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
