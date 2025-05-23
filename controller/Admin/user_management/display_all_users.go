@@ -2,6 +2,7 @@ package controller
 
 import (
 	//"fmt"
+	"fmt"
 	"intern_template_v1/middleware"
 	"intern_template_v1/model"
 	"intern_template_v1/model/response"
@@ -339,23 +340,127 @@ func UpdateUserDetails(c *fiber.Ctx) error {
 	})
 }
 
-// ✅ Function to soft-delete a user and related apartments and inquiries, setting expiration time
-func SoftDeleteUser(c *fiber.Ctx) error {
-	uid := c.Params("uid") // Get the UID from the URL path parameter
+// // ✅ Function to soft-delete a user and related apartments and inquiries, setting expiration time
+// func SoftDeleteUser(c *fiber.Ctx) error {
+// 	uid := c.Params("uid") // Get the UID from the URL path parameter
 
+// 	if uid == "" {
+// 		log.Println("[ERROR] UID parameter missing")
+// 		return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
+// 			RetCode: "400",
+// 			Message: "UID is required for deletion",
+// 			Data:    nil,
+// 		})
+// 	}
+
+// 	// Start a transaction
+// 	tx := middleware.DBConn.Begin()
+// 	if tx.Error != nil {
+// 		log.Println("[ERROR] Failed to start transaction:", tx.Error)
+// 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+// 			RetCode: "500",
+// 			Message: "Failed to start transaction",
+// 			Data:    nil,
+// 		})
+// 	}
+
+// 	// Fetch the user record by UID within the transaction
+// 	var user model.User
+// 	if err := tx.Where("uid = ?", uid).First(&user).Error; err != nil {
+// 		tx.Rollback()
+// 		log.Println("[ERROR] User not found:", err)
+// 		return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
+// 			RetCode: "404",
+// 			Message: "User not found",
+// 			Data:    nil,
+// 		})
+// 	}
+
+// 	// Calculate expiration time (e.g., 90 days from now)
+// 	expirationTime := time.Now().UTC().Add(90 * 24 * time.Hour) // Adjust duration as needed
+// 	//expirationTime := time.Now().UTC().Add(1 * time.Minute) // Test with 2 minutes
+// 	// Soft delete the user by updating account_status and expires_at
+// 	user.AccountStatus = "Deleted"
+// 	user.ExpiresAt = expirationTime
+// 	if err := tx.Save(&user).Error; err != nil {
+// 		tx.Rollback()
+// 		log.Println("[ERROR] Failed to soft-delete user:", err)
+// 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+// 			RetCode: "500",
+// 			Message: "Failed to delete user",
+// 			Data:    nil,
+// 		})
+// 	}
+
+// 	// Prepare expiration time pointer for Apartment (which uses *time.Time)
+// 	expirationTimePtr := &expirationTime
+
+// 	// Soft delete all related apartments by setting status to "Deleted" and expires_at
+// 	if err := tx.Model(&model.Apartment{}).
+// 		Where("user_id = ?", uid).
+// 		Updates(map[string]interface{}{
+// 			"status":     "Deleted",
+// 			"expires_at": expirationTimePtr,
+// 		}).Error; err != nil {
+// 		tx.Rollback()
+// 		log.Println("[ERROR] Failed to update related apartments:", err)
+// 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+// 			RetCode: "500",
+// 			Message: "Failed to update related apartments",
+// 			Data:    nil,
+// 		})
+// 	}
+
+// 	// Update all related inquiries by setting status to "Rejected" and expires_at
+// 	if err := tx.Model(&model.Inquiry{}).
+// 		Where("tenant_uid = ? OR landlord_uid = ?", uid, uid). // Use proper column names
+// 		Updates(map[string]interface{}{
+// 			"status":     "Rejected",
+// 			"expires_at": expirationTime,
+// 		}).Error; err != nil {
+// 		tx.Rollback()
+// 		log.Println("[ERROR] Failed to update related inquiries:", err)
+// 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+// 			RetCode: "500",
+// 			Message: "Failed to update related inquiries",
+// 			Data:    nil,
+// 		})
+// 	}
+// 	// Commit the transaction
+// 	if err := tx.Commit().Error; err != nil {
+// 		tx.Rollback()
+// 		log.Println("[ERROR] Failed to commit transaction:", err)
+// 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+// 			RetCode: "500",
+// 			Message: "Failed to complete deletion",
+// 			Data:    nil,
+// 		})
+// 	}
+
+// 	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+// 		RetCode: "200",
+// 		Message: "User and related data soft-deleted successfully. All records will expire on " + expirationTime.Format(time.RFC3339),
+// 		Data: fiber.Map{
+// 			"uid":            user.Uid,
+// 			"account_status": user.AccountStatus,
+// 			"expires_at":     user.ExpiresAt.Format(time.RFC3339),
+// 		},
+// 	})
+// }
+
+// ✅ Function to soft-delete user and related data based on user type
+func SoftDeleteUser(c *fiber.Ctx) error {
+	uid := c.Params("uid")
 	if uid == "" {
-		log.Println("[ERROR] UID parameter missing")
 		return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
 			RetCode: "400",
-			Message: "UID is required for deletion",
+			Message: "UID is required",
 			Data:    nil,
 		})
 	}
 
-	// Start a transaction
 	tx := middleware.DBConn.Begin()
 	if tx.Error != nil {
-		log.Println("[ERROR] Failed to start transaction:", tx.Error)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
 			RetCode: "500",
 			Message: "Failed to start transaction",
@@ -363,11 +468,10 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch the user record by UID within the transaction
+	// Fetch user within transaction
 	var user model.User
 	if err := tx.Where("uid = ?", uid).First(&user).Error; err != nil {
 		tx.Rollback()
-		log.Println("[ERROR] User not found:", err)
 		return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
 			RetCode: "404",
 			Message: "User not found",
@@ -375,74 +479,132 @@ func SoftDeleteUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Calculate expiration time (e.g., 90 days from now)
-	expirationTime := time.Now().UTC().Add(90 * 24 * time.Hour) // Adjust duration as needed
-	//expirationTime := time.Now().UTC().Add(1 * time.Minute) // Test with 2 minutes
-	// Soft delete the user by updating account_status and expires_at
+	// Set expiration time (90 days from now)
+	expirationTime := time.Now().UTC().Add(90 * 24 * time.Hour)
+	expirationTimePtr := &expirationTime
+
+	// Update user account status and expiration
 	user.AccountStatus = "Deleted"
 	user.ExpiresAt = expirationTime
 	if err := tx.Save(&user).Error; err != nil {
 		tx.Rollback()
-		log.Println("[ERROR] Failed to soft-delete user:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
 			RetCode: "500",
-			Message: "Failed to delete user",
+			Message: "Failed to update user",
 			Data:    nil,
 		})
 	}
 
-	// Prepare expiration time pointer for Apartment (which uses *time.Time)
-	expirationTimePtr := &expirationTime
+	// Common updates for all user types
+	commonUpdates := func() error {
+		// Update inquiries
+		if err := tx.Model(&model.Inquiry{}).
+			Where("tenant_uid = ? OR landlord_uid = ?", uid, uid).
+			Updates(map[string]interface{}{
+				"status":     "Deleted",
+				"expires_at": expirationTime,
+			}).Error; err != nil {
+			return err
+		}
 
-	// Soft delete all related apartments by setting status to "Deleted" and expires_at
-	if err := tx.Model(&model.Apartment{}).
-		Where("user_id = ?", uid).
-		Updates(map[string]interface{}{
-			"status":     "Deleted",
-			"expires_at": expirationTimePtr,
-		}).Error; err != nil {
+		// Update rental agreements
+		if err := tx.Model(&model.RentalAgreement{}).
+			Where("tenant_id = ? OR landlord_id = ?", uid, uid).
+			Updates(map[string]interface{}{"status": "Deleted"}).Error; err != nil {
+			return err
+		}
+
+		// Update ratings
+		return tx.Model(&model.Rating{}).
+			Where("tenant_id = ?", uid).
+			Updates(map[string]interface{}{"status": "Deleted"}).Error
+	}
+
+	// User type specific updates
+	switch user.UserType {
+	case "Landlord":
+		// Update apartments
+		if err := tx.Model(&model.Apartment{}).
+			Where("uid = ?", uid). // Using UID column for landlord reference
+			Updates(map[string]interface{}{
+				"status":     "Deleted",
+				"expires_at": expirationTimePtr,
+			}).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+				RetCode: "500",
+				Message: "Failed to update apartments",
+				Data:    nil,
+			})
+		}
+
+		// Update landlord profile
+		if err := tx.Model(&model.LandlordProfile{}).
+			Where("uid = ?", uid).
+			Update("status", "Deleted").Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+				RetCode: "500",
+				Message: "Failed to update landlord profile",
+				Data:    nil,
+			})
+		}
+
+	case "Tenant":
+		// Update wishlists
+		if err := tx.Model(&model.Wishlist{}).
+			Where("uid = ?", uid).
+			Update("status", "Deleted").Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+				RetCode: "500",
+				Message: "Failed to update wishlists",
+				Data:    nil,
+			})
+		}
+
+		// Update recently viewed
+		if err := tx.Model(&model.RecentlyViewed{}).
+			Where("uid = ?", uid).
+			Updates(map[string]interface{}{
+				"status":     "Deleted",
+				"expires_at": expirationTime,
+			}).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
+				RetCode: "500",
+				Message: "Failed to update recently viewed",
+				Data:    nil,
+			})
+		}
+	}
+
+	// Execute common updates
+	if err := commonUpdates(); err != nil {
 		tx.Rollback()
-		log.Println("[ERROR] Failed to update related apartments:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
 			RetCode: "500",
-			Message: "Failed to update related apartments",
+			Message: "Failed to update related records",
 			Data:    nil,
 		})
 	}
 
-	// Update all related inquiries by setting status to "Rejected" and expires_at
-	if err := tx.Model(&model.Inquiry{}).
-		Where("tenant_uid = ? OR landlord_uid = ?", uid, uid). // Use proper column names
-		Updates(map[string]interface{}{
-			"status":     "Rejected",
-			"expires_at": expirationTime,
-		}).Error; err != nil {
-		tx.Rollback()
-		log.Println("[ERROR] Failed to update related inquiries:", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
-			RetCode: "500",
-			Message: "Failed to update related inquiries",
-			Data:    nil,
-		})
-	}
-	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		log.Println("[ERROR] Failed to commit transaction:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{
 			RetCode: "500",
-			Message: "Failed to complete deletion",
+			Message: "Failed to commit transaction",
 			Data:    nil,
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+	return c.JSON(response.ResponseModel{
 		RetCode: "200",
-		Message: "User and related data soft-deleted successfully. All records will expire on " + expirationTime.Format(time.RFC3339),
+		Message: fmt.Sprintf("User (%s) and related data soft-deleted successfully", user.UserType),
 		Data: fiber.Map{
 			"uid":            user.Uid,
 			"account_status": user.AccountStatus,
-			"expires_at":     user.ExpiresAt.Format(time.RFC3339),
+			"expires_at":     expirationTime.Format(time.RFC3339),
 		},
 	})
 }
