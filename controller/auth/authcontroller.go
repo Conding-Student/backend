@@ -114,6 +114,116 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	})
 }
 
+// Verify Firebase ID Token with account status check
+func VerifyFirebaseTokenAdmin(c *fiber.Ctx) error {
+	var requestData struct {
+		IDToken string `json:"id_token"`
+	}
+
+	if err := c.BodyParser(&requestData); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	// Firebase Auth Client check
+	if firebaseAuthClient == nil {
+		log.Println("[ERROR] Firebase Auth Client not initialized")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Server configuration error",
+		})
+	}
+
+	// Verify Firebase ID Token
+	token, err := firebaseAuthClient.VerifyIDToken(context.Background(), requestData.IDToken)
+	if err != nil {
+		log.Printf("[ERROR] Firebase token verification failed: %v", err)
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid Firebase token",
+		})
+	}
+
+	// Extract UID and email
+	uid := token.UID
+	email, ok := token.Claims["email"].(string)
+	if !ok || email == "" {
+		log.Println("[ERROR] Invalid email claim in token")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid email in token",
+		})
+	}
+
+	// 🛑 Check for deleted account first
+	var existingAdmin model.Admins
+	if err := middleware.DBConn.
+		Unscoped(). // Include soft-deleted records
+		Where("uid = ?", uid).
+		First(&existingAdmin).Error; err == nil {
+		// Handle soft-deleted admin case if needed
+	}
+
+	// 💾 Create/update admin account
+	role, err := saveOrUpdateAdmin(uid, email)
+	if err != nil {
+		log.Printf("[ERROR] Admin save failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Admin account processing failed",
+		})
+	}
+
+	// 🔑 Generate JWT
+	newJWT, err := middleware.GenerateJWT(uid, email, role)
+	if err != nil {
+		log.Printf("[ERROR] JWT generation failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Authentication failed",
+		})
+	}
+
+	log.Printf("✅ Successful admin authentication: %s (%s)", email, uid)
+	return c.JSON(fiber.Map{
+		"message":      "Authentication successful",
+		"uid":          uid,
+		"email":        email,
+		"role":         role,
+		"access_token": newJWT,
+	})
+}
+
+func saveOrUpdateAdmin(uid, email string) (string, error) {
+	var admin model.Admins
+	err := middleware.DBConn.Where("uid = ?", uid).First(&admin).Error
+
+	if err == nil {
+		// Existing admin - update email if changed
+		if admin.Email != email {
+			admin.Email = email
+			if err := middleware.DBConn.Save(&admin).Error; err != nil {
+				return "", fmt.Errorf("email update failed: %v", err)
+			}
+		}
+		return "Admin", nil
+	}
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Create new admin
+		newAdmin := model.Admins{
+			Uid:       uid,
+			Email:     email,
+			Password:  "", // Optional: Set to default/blank or let frontend handle
+			CreatedAt: time.Now(),
+		}
+
+		if err := middleware.DBConn.Create(&newAdmin).Error; err != nil {
+			return "", fmt.Errorf("admin creation failed: %v", err)
+		}
+		return "Admin", nil
+	}
+
+	return "", fmt.Errorf("database error: %v", err)
+}
+
+
 // Enhanced saveOrUpdateUser function
 func saveOrUpdateUser(uid, email string) (string, error) {
 	var user model.User

@@ -75,38 +75,55 @@ func GetUserProfile(c *fiber.Ctx) error {
 }
 
 func GetFullnameByUID(c *fiber.Ctx) error {
-	log.Println("[DEBUG] GetFullnameByUID called")
+    log.Println("[DEBUG] GetFullnameByUID called")
 
-	uid := c.Params("uid")
-	if uid == "" {
-		log.Println("[ERROR] UID param is missing")
-		return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
-			RetCode: "400",
-			Message: "UID is required",
-			Data:    nil,
-		})
-	}
+    uid := c.Params("uid")
+    if uid == "" {
+        log.Println("[ERROR] UID param is missing")
+        return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
+            RetCode: "400",
+            Message: "UID is required",
+            Data:    nil,
+        })
+    }
 
-	var user model.User
-	result := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&user)
-	if result.Error != nil {
-		log.Println("[ERROR] User not found:", result.Error)
-		return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
-			RetCode: "404",
-			Message: "User not found",
-			Data:    nil,
-		})
-	}
+    // First try to find in users table
+    var user model.User
+    userResult := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&user)
+    
+    if userResult.Error == nil {
+        log.Printf("[DEBUG] Found user in users table for UID %s: %s", uid, user.Fullname)
+        return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+            RetCode: "200",
+            Message: "Fullname retrieved successfully",
+            Data: fiber.Map{
+                "fullname": user.Fullname,
+            },
+        })
+    }
 
-	log.Printf("[DEBUG] Fullname for UID %s: %s", uid, user.Fullname)
+    // If not found in users table, try admins table
+    var admin model.Admins
+    adminResult := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&admin)
+    
+    if adminResult.Error == nil {
+        log.Printf("[DEBUG] Found admin in admins table for UID %s: %s", uid, admin.Email)
+        return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+            RetCode: "200",
+            Message: "Admin email retrieved successfully",
+            Data: fiber.Map{
+                // Using email since Admins struct doesn't have fullname
+                "fullname": admin.Fullname, // Or you might want to return "Admin" as a role
+            },
+        })
+    }
 
-	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
-		RetCode: "200",
-		Message: "Fullname retrieved successfully",
-		Data: fiber.Map{
-			"fullname": user.Fullname,
-		},
-	})
+    log.Println("[ERROR] User/Admin not found for UID:", uid)
+    return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
+        RetCode: "404",
+        Message: "User/Admin not found",
+        Data:    nil,
+    })
 }
 // GetUserRoleByUID retrieves the user's role based on their UID
 func GetUserRoleByUID(c *fiber.Ctx) error {
@@ -156,24 +173,39 @@ func GetUserProfilePhotoByUID(c *fiber.Ctx) error {
 		})
 	}
 
+	// First check in the User table
 	var user model.User
 	result := middleware.DBConn.Select("photo_url").Where("uid = ?", uid).First(&user)
-	if result.Error != nil {
-		log.Println("[ERROR] User not found:", result.Error)
-		return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
-			RetCode: "404",
-			Message: "User not found",
-			Data:    nil,
+	if result.Error == nil {
+		log.Printf("[DEBUG] Profile photo URL for UID %s found in Users: %s", uid, user.PhotoURL)
+		return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+			RetCode: "200",
+			Message: "Profile photo retrieved successfully",
+			Data: fiber.Map{
+				"photo_url": user.PhotoURL,
+			},
 		})
 	}
 
-	log.Printf("[DEBUG] Profile photo URL for UID %s: %s", uid, user.PhotoURL)
+	// If not found in User table, check Admins table
+	var admin model.Admins
+	result = middleware.DBConn.Select("photo_url").Where("uid = ?", uid).First(&admin)
+	if result.Error == nil {
+		log.Printf("[DEBUG] Profile photo URL for UID %s found in Admins: %s", uid, admin.PhotoURL)
+		return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+			RetCode: "200",
+			Message: "Profile photo retrieved successfully",
+			Data: fiber.Map{
+				"photo_url": admin.PhotoURL,
+			},
+		})
+	}
 
-	return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
-		RetCode: "200",
-		Message: "Profile photo retrieved successfully",
-		Data: fiber.Map{
-			"photo_url": user.PhotoURL,
-		},
+	// If not found in either
+	log.Println("[ERROR] UID not found in both Users and Admins")
+	return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
+		RetCode: "404",
+		Message: "User not found",
+		Data:    nil,
 	})
 }

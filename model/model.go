@@ -15,6 +15,9 @@ type Admins struct {
 	Password  string       `gorm:"not null"`
 	CreatedAt time.Time    `json:"created_at"`
 	Tokens    []AdminToken `gorm:"foreignKey:AdminID;constraint:OnDelete:CASCADE"`
+	Uid           string    `json:"uid" gorm:"uniqueIndex"` // Unique user identifier
+	Fullname      string    `json:"fullname"`
+	PhotoURL	  string    `json:"photo_url"`
 }
 
 type AdminToken struct {
@@ -22,6 +25,7 @@ type AdminToken struct {
 	AdminID   uint      `gorm:"not null;index"` // Foreign key to Admins.ID
 	Token     string    `gorm:"not null"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
+	
 }
 
 type User struct {
