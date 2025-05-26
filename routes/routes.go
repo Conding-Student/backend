@@ -301,6 +301,10 @@ app.Get("/unverifyAndResend/:uid", config.UnverifyAndResendHandler)
 	app.Get("/api/inquiries/has-inquiry", middleware.AuthMiddleware, controller.CheckHasInquiry)
 
 
+
+	//Payment using Gcash routes
+	
+
 }
 
 // Helper to mask sensitive token in logs

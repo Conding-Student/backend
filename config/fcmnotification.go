@@ -138,15 +138,17 @@ func SendPushNotification(fcmToken, title, body, conversationId, senderId string
 
 	// Log only once per conversation
 	go func() {
-		hasExisting, err := hasExistingNotification(ctx, conversationId, senderId)
-		if err != nil {
-			log.Printf("Error checking existing log: %v", err)
-			return
-		}
-		if hasExisting {
-			log.Printf("Skipping log creation for conversation %s", conversationId)
-			return
-		}
+		if conversationId != "general" {
+	hasExisting, err := hasExistingNotification(ctx, conversationId, senderId)
+	if err != nil {
+		log.Printf("Error checking existing log: %v", err)
+		return
+	}
+	if hasExisting {
+		log.Printf("Skipping log creation for conversation %s", conversationId)
+		return
+	}
+}
 
 		receiverID, _ := extractReceiverIdFromToken(fcmToken)
 		logRef := firestoreClient.Collection("notification_logs").NewDoc()

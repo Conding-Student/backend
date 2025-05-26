@@ -202,3 +202,18 @@ type Rating struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
+
+
+//Gcash Payment model
+type Transaction struct {
+	ID                uint      `gorm:"primaryKey"`
+	UserID            string    `gorm:"type:varchar(50);not null"`
+	BaseAmount        float64   `gorm:"type:decimal(10,2);not null"`
+	InterestAmount    float64   `gorm:"type:decimal(10,2);not null"`
+	TotalAmount       float64   `gorm:"type:decimal(10,2);not null"`
+	PayMongoSourceID  string    `gorm:"type:varchar(50)"`
+	PayMongoPaymentID string    `gorm:"type:varchar(50)"`
+	Status            string    `gorm:"type:varchar(20);not null"`
+	CreatedAt         time.Time `gorm:"autoCreateTime"`
+	UpdatedAt         time.Time `gorm:"autoUpdateTime"`
+}

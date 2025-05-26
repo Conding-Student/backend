@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"intern_template_v1/config"
+	"intern_template_v1/controller"
 	authController "intern_template_v1/controller/auth" // alias local auth package as authController
 	"intern_template_v1/middleware"
 	"intern_template_v1/routes"
@@ -44,10 +45,34 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	// Initialize PayMongo service
+	service := &controller.PayMongoService{
+		DB:        middleware.DBConn, // Use the global DB connection
+		PublicKey: "pk_test_r4grVzaAZPPhvjakJZX7Fjpv",
+		SecretKey: "sk_test_87FgkvAzg7CcPaRxemAL8Qhd",
+	}
+
 	// Step 4: Create Fiber App
 	app := fiber.New(fiber.Config{
 		AppName: middleware.GetEnv("PROJ_NAME"),
 	})
+
+	app.Post("/api/create-source", service.CreateSource)
+	app.Post("/api/webhook", service.HandleWebhook)
+	app.Get("/api/transaction/:source_id", service.GetTransaction)
+	app.Get("/api/transactions", service.GetTransactions)
+
+	// PayMongo redirect routes
+	app.Get("/success", func(c *fiber.Ctx) error {
+		log.Printf("Received PayMongo success redirect")
+		return c.JSON(fiber.Map{"status": "success", "message": "Payment authorized"})
+	})
+	app.Get("/failed", func(c *fiber.Ctx) error {
+		log.Printf("Received PayMongo failed redirect")
+		return c.JSON(fiber.Map{"status": "failed", "message": "Payment failed"})
+	})
+
+
 		// CORS CONFIG
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",

@@ -4,12 +4,12 @@ go 1.23.2
 
 require (
 	firebase.google.com/go/v4 v4.15.2
-	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/crypto v0.36.0
 	google.golang.org/api v0.228.0
 	gorm.io/driver/postgres v1.5.11
-	gorm.io/gorm v1.25.12
+	gorm.io/gorm v1.30.0
 )
 
 require (

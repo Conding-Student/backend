@@ -43,6 +43,7 @@ func ConnectDB() bool {
 		&model.RecentlyViewed{},
 		&model.RentalAgreement{},
 		&model.Rating{},
+		&model.Transaction{},
 		// &model.AdminToken{},
 	)
 	
