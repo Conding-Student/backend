@@ -48,8 +48,9 @@ func main() {
 	// Initialize PayMongo service
 	service := &controller.PayMongoService{
 		DB:        middleware.DBConn, // Use the global DB connection
-		PublicKey: "pk_test_r4grVzaAZPPhvjakJZX7Fjpv",
-		SecretKey: "sk_test_87FgkvAzg7CcPaRxemAL8Qhd",
+		PublicKey: os.Getenv("PAYMONGO_PUBLIC_KEY"),
+SecretKey: os.Getenv("PAYMONGO_SECRET_KEY"),
+
 	}
 
 	// Step 4: Create Fiber App
