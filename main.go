@@ -96,5 +96,6 @@ func main() {
 	app.Use(logger.New())
 
 	// Step 6: Start Server
-	log.Fatal(app.Listen("0.0.0.0:8080")) // Allows external devices to connect
+	app.Listen("0.0.0.0:8080") // ✅ use this instead of "127.0.0.1:8080"
+
 }
