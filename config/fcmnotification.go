@@ -97,7 +97,7 @@ func TrackNotificationOpenHandler(c *fiber.Ctx) error {
 
 func initializeFirebase() {
 	ctx := context.Background()
-	serviceAccountPath := "config/rentxpert-a987d-firebase-adminsdk-fbsvc-18bc559e45.json"
+	serviceAccountPath := "config/rentxpert-a987d-firebase-adminsdk-fbsvc-40cdc3385d.json"
 	
 	// Initialize Firestore client
 	sa := option.WithCredentialsFile(serviceAccountPath)
@@ -173,7 +173,7 @@ func sendPushOnly(fcmToken, title, body, conversationId, senderId string) {
 	ctx := context.Background()
 
 	// Load service account key
-	saKey, err := os.ReadFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-18bc559e45.json")
+	saKey, err := os.ReadFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-40cdc3385d.json")
 	if err != nil {
 		log.Printf("Error reading service key: %v", err)
 		return
