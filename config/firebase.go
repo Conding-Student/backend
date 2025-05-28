@@ -12,65 +12,59 @@ import (
 )
 
 var FirebaseAuth *auth.Client
+
 // Route handler to resend verification email
 
-
-
 func UnverifyUserEmail(uid string) error {
-    _, err := FirebaseAuth.UpdateUser(context.Background(), uid, (&auth.UserToUpdate{}).EmailVerified(false))
-    if err != nil {
-        return fmt.Errorf("Error unverifying user: %v", err)
-    }
-    fmt.Println("🔄 User marked as unverified:", uid)
-    return nil
+	_, err := FirebaseAuth.UpdateUser(context.Background(), uid, (&auth.UserToUpdate{}).EmailVerified(false))
+	if err != nil {
+		return fmt.Errorf("Error unverifying user: %v", err)
+	}
+	fmt.Println("🔄 User marked as unverified:", uid)
+	return nil
 }
-
 
 func ResendVerificationEmail(uid string) (string, error) {
-    user, err := FirebaseAuth.GetUser(context.Background(), uid)
-    if err != nil {
-        return "", fmt.Errorf("Error fetching user: %v", err)
-    }
+	user, err := FirebaseAuth.GetUser(context.Background(), uid)
+	if err != nil {
+		return "", fmt.Errorf("Error fetching user: %v", err)
+	}
 
-    email := user.Email
-	print(email);
-    if email == "" {
-        return "", fmt.Errorf("User does not have an email set.")
-    }
+	email := user.Email
+	print(email)
+	if email == "" {
+		return "", fmt.Errorf("User does not have an email set.")
+	}
 
-    link, err := FirebaseAuth.EmailVerificationLink(context.Background(), email)
-    if err != nil {
-        return "", fmt.Errorf("Error generating verification link: %v", err)
-    }
+	link, err := FirebaseAuth.EmailVerificationLink(context.Background(), email)
+	if err != nil {
+		return "", fmt.Errorf("Error generating verification link: %v", err)
+	}
 
-    fmt.Println("📩 Verification link generated:", link)
-    return link, nil
+	fmt.Println("📩 Verification link generated:", link)
+	return link, nil
 }
-
-
 
 func UnverifyAndResendHandler(c *fiber.Ctx) error {
-    uid := c.Params("uid")
-    if uid == "" {
-        return c.Status(400).SendString("Missing UID parameter")
-    }
+	uid := c.Params("uid")
+	if uid == "" {
+		return c.Status(400).SendString("Missing UID parameter")
+	}
 
-    // Step 1: Unverify the email
-    err := UnverifyUserEmail(uid)
-    if err != nil {
-        return c.Status(500).SendString(err.Error())
-    }
+	// Step 1: Unverify the email
+	err := UnverifyUserEmail(uid)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
 
-    // Step 2: Resend verification email
-    link, err := ResendVerificationEmail(uid)
-    if err != nil {
-        return c.Status(500).SendString(err.Error())
-    }
+	// Step 2: Resend verification email
+	link, err := ResendVerificationEmail(uid)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
 
-    return c.SendString(fmt.Sprintf("✅ Email unverified and verification link sent: %s", link))
+	return c.SendString(fmt.Sprintf("✅ Email unverified and verification link sent: %s", link))
 }
-
-
 
 func InitializeFirebase() *firebase.App {
 	opt := option.WithCredentialsFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-40cdc3385d.json")
@@ -89,4 +83,3 @@ func InitializeFirebase() *firebase.App {
 	log.Println("✅ Firebase Auth initialized successfully")
 	return app
 }
-

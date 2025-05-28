@@ -51,6 +51,7 @@ var (
 func init() {
 	initializeFirebase()
 }
+
 // SendNotificationHandler handles sending notifications
 func SendNotificationHandler(c *fiber.Ctx) error {
 	type request struct {
@@ -98,7 +99,7 @@ func TrackNotificationOpenHandler(c *fiber.Ctx) error {
 func initializeFirebase() {
 	ctx := context.Background()
 	serviceAccountPath := "config/rentxpert-a987d-firebase-adminsdk-fbsvc-40cdc3385d.json"
-	
+
 	// Initialize Firestore client
 	sa := option.WithCredentialsFile(serviceAccountPath)
 	app, err := firebase.NewApp(ctx, nil, sa)
@@ -128,7 +129,6 @@ func extractProjectID(serviceAccountPath string) string {
 	return serviceAccount["project_id"].(string)
 }
 
-
 // Core Functions
 func SendPushNotification(fcmToken, title, body, conversationId, senderId string) {
 	ctx := context.Background()
@@ -139,16 +139,16 @@ func SendPushNotification(fcmToken, title, body, conversationId, senderId string
 	// Log only once per conversation
 	go func() {
 		if conversationId != "general" {
-	hasExisting, err := hasExistingNotification(ctx, conversationId, senderId)
-	if err != nil {
-		log.Printf("Error checking existing log: %v", err)
-		return
-	}
-	if hasExisting {
-		log.Printf("Skipping log creation for conversation %s", conversationId)
-		return
-	}
-}
+			hasExisting, err := hasExistingNotification(ctx, conversationId, senderId)
+			if err != nil {
+				log.Printf("Error checking existing log: %v", err)
+				return
+			}
+			if hasExisting {
+				log.Printf("Skipping log creation for conversation %s", conversationId)
+				return
+			}
+		}
 
 		receiverID, _ := extractReceiverIdFromToken(fcmToken)
 		logRef := firestoreClient.Collection("notification_logs").NewDoc()
