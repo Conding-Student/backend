@@ -83,7 +83,7 @@ func AppRoutes(app *fiber.App) {
 	app.Put("/accept/landlordrequest/:uid", landlordcontroller2.VerifyLandlordUsingAdmin)    // aacepting landlord request
 	app.Post("/rejecting/landlordrequest/:uid", landlordcontroller2.RejectLandlordRequest)   // rejecting landlord request
 	app.Post("/rejecting/landlordApartment/:id", landlordcontroller2.RejectApartmentRequest) // rejecting landlord request
-	app.Post("/firebase/login", authcontroller.VerifyFirebaseTokenAdmin)
+	// app.Post("/firebase/login", authcontroller.VerifyFirebaseTokenAdmin)
 
 	//////////////////// GET //////////////////
 	app.Get("/adminuserinfo/search", admincontroller2.GetFilteredUserDetailspart2)
