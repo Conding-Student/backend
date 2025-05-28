@@ -3,9 +3,9 @@ package controller
 import (
 	"time"
 
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
-	"intern_template_v1/model/response"
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
+	"github.com/Conding-Student/backend/model/response"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -56,7 +56,7 @@ func FetchInquiriesByLandlord(c *fiber.Ctx) error {
 
 	// Query to join users and properties
 	err = middleware.DBConn.Model(&model.Inquiry{}).
-	Select(`
+		Select(`
 	inquiries.id,
 	inquiries.tenant_uid,
 	users.fullname AS tenant_name,
@@ -69,12 +69,11 @@ func FetchInquiriesByLandlord(c *fiber.Ctx) error {
 	inquiries.created_at,
 	inquiries.expires_at
 `).
-Joins("JOIN users ON users.uid = inquiries.tenant_uid").
-Joins("JOIN apartments ON apartments.id = inquiries.property_id").
-Where("apartments.uid = ?", uid).
-Order("inquiries.created_at DESC").
-Find(&inquiries).Error
-
+		Joins("JOIN users ON users.uid = inquiries.tenant_uid").
+		Joins("JOIN apartments ON apartments.id = inquiries.property_id").
+		Where("apartments.uid = ?", uid).
+		Order("inquiries.created_at DESC").
+		Find(&inquiries).Error
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(response.ResponseModel{

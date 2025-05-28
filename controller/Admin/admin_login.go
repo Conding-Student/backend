@@ -6,8 +6,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5" // Correct version for your case
 
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"

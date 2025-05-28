@@ -1,9 +1,10 @@
 package controller
 
 import (
-	"intern_template_v1/middleware"
 	"strconv"
 	"strings"
+
+	"github.com/Conding-Student/backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )

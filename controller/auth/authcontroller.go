@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	"firebase.google.com/go/v4/auth"
 	"github.com/gofiber/fiber/v2"
@@ -61,20 +62,19 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
 	email, _ := token.Claims["email"].(string)
 	fullName, _ := token.Claims["name"].(string)
 	photoUrl, _ := token.Claims["picture"].(string)
-provider := ""
-if firebaseMap, ok := token.Claims["firebase"].(map[string]interface{}); ok {
-	if signInProvider, ok := firebaseMap["sign_in_provider"].(string); ok {
-		provider = signInProvider
+	provider := ""
+	if firebaseMap, ok := token.Claims["firebase"].(map[string]interface{}); ok {
+		if signInProvider, ok := firebaseMap["sign_in_provider"].(string); ok {
+			provider = signInProvider
+		}
 	}
-}
 
-if provider == "facebook.com" {
-	userRecord, err := firebaseAuthClient.GetUser(context.Background(), uid)
-	if err == nil && userRecord.PhotoURL != "" {
-		photoUrl = userRecord.PhotoURL
+	if provider == "facebook.com" {
+		userRecord, err := firebaseAuthClient.GetUser(context.Background(), uid)
+		if err == nil && userRecord.PhotoURL != "" {
+			photoUrl = userRecord.PhotoURL
+		}
 	}
-}
-
 
 	// Check for deleted accounts
 	var existingUser model.User
@@ -90,9 +90,8 @@ if provider == "facebook.com" {
 		}
 	}
 
-	
 	// Save or update user with extracted data
-role, err := saveOrUpdateUserWithDetails(uid, email, fullName, photoUrl, provider)
+	role, err := saveOrUpdateUserWithDetails(uid, email, fullName, photoUrl, provider)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "User account processing failed",
@@ -116,7 +115,6 @@ role, err := saveOrUpdateUserWithDetails(uid, email, fullName, photoUrl, provide
 		"access_token": newJWT,
 	})
 }
-
 
 // Verify Firebase ID Token with account status check
 func VerifyFirebaseTokenAdmin(c *fiber.Ctx) error {
@@ -227,7 +225,6 @@ func saveOrUpdateAdmin(uid, email string) (string, error) {
 	return "", fmt.Errorf("database error: %v", err)
 }
 
-
 func saveOrUpdateUserWithDetails(uid, email, fullname, photoUrl, provider string) (string, error) {
 	var user model.User
 	err := middleware.DBConn.Where("uid = ?", uid).First(&user).Error
@@ -248,9 +245,9 @@ func saveOrUpdateUserWithDetails(uid, email, fullname, photoUrl, provider string
 			changed = true
 		}
 		if user.Provider != provider {
-	user.Provider = provider
-	changed = true
-}
+			user.Provider = provider
+			changed = true
+		}
 		if changed {
 			user.UpdatedAt = time.Now()
 			if err := middleware.DBConn.Save(&user).Error; err != nil {
@@ -280,6 +277,3 @@ func saveOrUpdateUserWithDetails(uid, email, fullname, photoUrl, provider string
 
 	return "", fmt.Errorf("database error: %v", err)
 }
-
-
-

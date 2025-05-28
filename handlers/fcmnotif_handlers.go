@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"intern_template_v1/config" // adjust import path
+	"github.com/Conding-Student/backend/config" // adjust import path
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -18,7 +18,7 @@ func TrackNotificationOpenHandler(c *fiber.Ctx) error {
 	err := config.TrackNotificationOpen(logId)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to track notification open",
+			"error":  "Failed to track notification open",
 			"detail": err.Error(),
 		})
 	}

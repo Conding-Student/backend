@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"fmt"
-	"intern_template_v1/model" // Updated models import
 	"log"
+
+	"github.com/Conding-Student/backend/model" // Corrected models import
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -46,7 +47,7 @@ func ConnectDB() bool {
 		&model.Transaction{},
 		// &model.AdminToken{},
 	)
-	
+
 	// ✅ Create unique index (outside AutoMigrate)
 	if err := DBConn.Exec(`
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_apartment_tenant 

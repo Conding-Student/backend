@@ -1,11 +1,12 @@
 package controller
 
 import (
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"

@@ -1,9 +1,10 @@
 package controller
 
 import (
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
 	"time"
+
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,7 +36,7 @@ func Signup(c *fiber.Ctx) error {
 			"error": "Cannot parse JSON",
 		})
 	}
-	
+
 	// Database operation
 	result := middleware.DBConn.Create(&user)
 	if result.Error != nil {
@@ -43,7 +44,7 @@ func Signup(c *fiber.Ctx) error {
 			"error": "Failed to save user",
 		})
 	}
-	
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "User saved successfully",

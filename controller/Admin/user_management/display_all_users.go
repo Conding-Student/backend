@@ -3,14 +3,15 @@ package controller
 import (
 	//"fmt"
 	"fmt"
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
-	"intern_template_v1/model/response"
 	"log"
 	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
+	"github.com/Conding-Student/backend/model/response"
 
 	"github.com/gofiber/fiber/v2"
 )

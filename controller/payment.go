@@ -5,11 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"intern_template_v1/model"
 	"io"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/Conding-Student/backend/model"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -92,7 +93,7 @@ func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 	sourceReq.Data.Attributes.Currency = "PHP"
 	sourceReq.Data.Attributes.Type = "gcash"
 	sourceReq.Data.Attributes.Redirect.Success = "https://9f5d-180-193-184-88.ngrok-free.app/success"
-	sourceReq.Data.Attributes.Redirect.Failed =  "https://9f5d-180-193-184-88.ngrok-free.app/failed"
+	sourceReq.Data.Attributes.Redirect.Failed = "https://9f5d-180-193-184-88.ngrok-free.app/failed"
 
 	body, err := json.Marshal(sourceReq)
 	if err != nil {
@@ -126,7 +127,7 @@ func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 
 	if resp.StatusCode != http.StatusOK {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":  "PayMongo source creation failed",
+			"error":   "PayMongo source creation failed",
 			"details": string(respBody),
 		})
 	}
@@ -141,7 +142,7 @@ func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 	if sourceResp.Data.Attributes.Status != "pending" {
 		log.Printf("Unexpected source status: %s", sourceResp.Data.Attributes.Status)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":  "Invalid source status",
+			"error":   "Invalid source status",
 			"details": string(respBody),
 		})
 	}
@@ -279,7 +280,6 @@ func (s *PayMongoService) HandleWebhook(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-
 // Helper function to create a payment
 func (s *PayMongoService) createPayment(sourceID string, amount int) (string, error) {
 	paymentReq := map[string]interface{}{
@@ -385,52 +385,52 @@ func (s *PayMongoService) getPaymentIDForSource(sourceID string) (string, error)
 }
 
 func (s *PayMongoService) GetTransaction(c *fiber.Ctx) error {
-    sourceID := c.Params("source_id")
-    if sourceID == "" {
-        log.Printf("Missing source_id parameter")
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Source ID required"})
-    }
+	sourceID := c.Params("source_id")
+	if sourceID == "" {
+		log.Printf("Missing source_id parameter")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Source ID required"})
+	}
 
-    var txn model.Transaction
-    if err := s.DB.Where("pay_mongo_source_id = ?", sourceID).First(&txn).Error; err != nil {
-        log.Printf("Transaction not found for source %s: %v", sourceID, err)
-        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Transaction not found"})
-    }
+	var txn model.Transaction
+	if err := s.DB.Where("pay_mongo_source_id = ?", sourceID).First(&txn).Error; err != nil {
+		log.Printf("Transaction not found for source %s: %v", sourceID, err)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Transaction not found"})
+	}
 
-    // Ensure non-null defaults for critical fields
-    if txn.UserID == "" {
-        txn.UserID = "unknown_user"
-    }
-    if txn.Status == "" {
-        txn.Status = "unknown"
-    }
+	// Ensure non-null defaults for critical fields
+	if txn.UserID == "" {
+		txn.UserID = "unknown_user"
+	}
+	if txn.Status == "" {
+		txn.Status = "unknown"
+	}
 
-    return c.JSON(fiber.Map{
-        "user_id":            txn.UserID,
-        "base_amount":        txn.BaseAmount,
-        "interest_amount":    txn.InterestAmount,
-        "total_amount":       txn.TotalAmount,
-        "paymongo_source_id": txn.PayMongoSourceID,
-        "paymongo_payment_id": txn.PayMongoPaymentID,
-        "status":             txn.Status,
-        "created_at":         txn.CreatedAt,
-        "updated_at":         txn.UpdatedAt,
-    })
+	return c.JSON(fiber.Map{
+		"user_id":             txn.UserID,
+		"base_amount":         txn.BaseAmount,
+		"interest_amount":     txn.InterestAmount,
+		"total_amount":        txn.TotalAmount,
+		"paymongo_source_id":  txn.PayMongoSourceID,
+		"paymongo_payment_id": txn.PayMongoPaymentID,
+		"status":              txn.Status,
+		"created_at":          txn.CreatedAt,
+		"updated_at":          txn.UpdatedAt,
+	})
 }
 
 // Add to PayMongoService methods
 func (s *PayMongoService) GetTransactions(c *fiber.Ctx) error {
-    userID := c.Query("user_id")
-    if userID == "" {
-        log.Printf("Missing user_id parameter")
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID required"})
-    }
+	userID := c.Query("user_id")
+	if userID == "" {
+		log.Printf("Missing user_id parameter")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID required"})
+	}
 
-    var transactions []model.Transaction
-    if err := s.DB.Where("user_id = ?", userID).Find(&transactions).Error; err != nil {
-        log.Printf("Failed to fetch transactions: %v", err)
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error"})
-    }
+	var transactions []model.Transaction
+	if err := s.DB.Where("user_id = ?", userID).Find(&transactions).Error; err != nil {
+		log.Printf("Failed to fetch transactions: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error"})
+	}
 
-    return c.JSON(transactions)
+	return c.JSON(transactions)
 }

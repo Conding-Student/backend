@@ -2,10 +2,11 @@ package controller
 
 import (
 	"errors"
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
 	"log"
 	"time"
+
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	"gorm.io/gorm"
 

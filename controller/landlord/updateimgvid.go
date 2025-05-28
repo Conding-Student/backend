@@ -2,9 +2,10 @@ package controller
 
 import (
 	"fmt"
-	"intern_template_v1/config"
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
+
+	"github.com/Conding-Student/backend/config"
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	//"intern_template_v1/model/response"
 	"net/http"

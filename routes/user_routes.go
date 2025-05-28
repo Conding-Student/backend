@@ -1,8 +1,8 @@
 package routes
 
 import (
-	controller "intern_template_v1/controller"
-	"intern_template_v1/middleware"
+	controller "github.com/Conding-Student/backend/controller"
+	"github.com/Conding-Student/backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )

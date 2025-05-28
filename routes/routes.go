@@ -3,28 +3,29 @@ package routes
 import (
 	//"intern_template_v1/controller"
 	// "intern_template_v1/controller"
-	"intern_template_v1/config"
-	admincontroller "intern_template_v1/controller/admin"
-	admincontroller3 "intern_template_v1/controller/admin/apartment_management"
-	admincontroller4 "intern_template_v1/controller/admin/chart"
-	admincontroller2 "intern_template_v1/controller/admin/user_management"
-	controller "intern_template_v1/controller/tenants"
-	"intern_template_v1/handlers"
 	"log"
 	"time"
 
-	authcontroller "intern_template_v1/controller/auth"
+	"github.com/Conding-Student/backend/config"
+	admincontroller "github.com/Conding-Student/backend/controller/admin"
+	admincontroller3 "github.com/Conding-Student/backend/controller/admin/apartment_management"
+	admincontroller4 "github.com/Conding-Student/backend/controller/admin/chart"
+	admincontroller2 "github.com/Conding-Student/backend/controller/admin/user_management"
+	controller "github.com/Conding-Student/backend/controller/tenants"
+	"github.com/Conding-Student/backend/handlers"
+
+	authcontroller "github.com/Conding-Student/backend/controller/auth"
 
 	// Usercontroller "intern_template_v1/controller/auth"
-	all "intern_template_v1/controller/all"
+	all "github.com/Conding-Student/backend/controller/all"
 
-	landlordcontroller "intern_template_v1/controller/landlord"
-	landlordcontroller2 "intern_template_v1/controller/landlord/business_profile"
+	landlordcontroller "github.com/Conding-Student/backend/controller/landlord"
+	landlordcontroller2 "github.com/Conding-Student/backend/controller/landlord/business_profile"
 
-	landlordcontroller_inquiries "intern_template_v1/controller/landlord/inquries"
+	landlordcontroller_inquiries "github.com/Conding-Student/backend/controller/landlord/inquries"
 
-	tenantscontroller "intern_template_v1/controller/tenants"
-	"intern_template_v1/middleware"
+	tenantscontroller "github.com/Conding-Student/backend/controller/tenants"
+	"github.com/Conding-Student/backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
 	//"golang.org/x/crypto/nacl/auth"
@@ -38,8 +39,6 @@ func AppRoutes(app *fiber.App) {
 	//go tenantscontroller.DeleteExpiredInquiries()
 	go landlordcontroller.ManageApartmentExpirations()
 	go landlordcontroller.ManageExpiredDeletions()
-
-
 
 	//////////////////// Landlord //////////////////
 
@@ -113,7 +112,7 @@ func AppRoutes(app *fiber.App) {
 
 	//////////////////// POST //////////////////
 	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
-		app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
+	app.Post("/create/validid", middleware.AuthMiddleware, all.SetValidID)
 	app.Post("/signup", authcontroller.Signup) // Register a new us
 	//////////////////// GET //////////////////
 	app.Get("/all/filter-apartments/", all.FetchApprovedApartmentsForTenant) //http://localhost:3000/all/filter-apartments?amenities=Wifi,Laundry&house_rules=No Smoking&min_price=3000&max_price=8000&property_types=Condo,Apartment
@@ -144,7 +143,6 @@ func AppRoutes(app *fiber.App) {
 	//////////////////// Tenant //////////////////
 
 	app.Post("/firebase", authcontroller.VerifyFirebaseToken)
-
 
 	// app.Post("/api/send-notification", func(c *fiber.Ctx) error {
 	// 	type RequestBody struct {
@@ -210,100 +208,91 @@ func AppRoutes(app *fiber.App) {
 	// 	return c.JSON(response)
 	// })
 
-
 	app.Post("/api/send-notification", func(c *fiber.Ctx) error {
-	type RequestBody struct {
-		FcmToken       string `json:"fcmToken"`
-		Title          string `json:"title"` // Optional, may be set dynamically
-		Body           string `json:"body"`
-		ConversationId string `json:"conversationId"` // Optional now
-		SenderId       string `json:"senderId"`
-		Debug          bool   `json:"debug"`
-	}
-
-	var req RequestBody
-	if err := c.BodyParser(&req); err != nil {
-		log.Printf("[Notification] Invalid request: %v", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":   "Invalid request body",
-			"details": err.Error(),
-		})
-	}
-
-	// Validate required fields
-	if req.FcmToken == "" {
-		log.Println("[Notification] Missing required field: fcmToken")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing required field: fcmToken",
-		})
-	}
-
-	// Optional: Generate a default conversation ID if needed
-	if req.ConversationId == "" {
-		req.ConversationId = "general" // Or generate a UUID if needed
-	}
-
-	// Dynamically set title if not provided
-	if req.Title == "" {
-		req.Title = "New Notification"
-	}
-
-	log.Printf("[Notification] Sending to token: %s | Conversation ID: %s",
-		maskToken(req.FcmToken), req.ConversationId)
-
-	// Call the notification sending logic
-	config.SendPushNotification(
-		req.FcmToken,
-		req.Title,
-		req.Body,
-		req.ConversationId,
-		req.SenderId,
-	)
-
-	// Success response
-	response := fiber.Map{
-		"status":  "success",
-		"message": "Notification sent successfully",
-		"data": fiber.Map{
-			"conversationId": req.ConversationId,
-			"timestamp":      time.Now().Format(time.RFC3339),
-		},
-	}
-
-	// Optional debug response
-	if req.Debug {
-		response["debug"] = fiber.Map{
-			"fcmToken": maskToken(req.FcmToken),
-			"senderId": req.SenderId,
+		type RequestBody struct {
+			FcmToken       string `json:"fcmToken"`
+			Title          string `json:"title"` // Optional, may be set dynamically
+			Body           string `json:"body"`
+			ConversationId string `json:"conversationId"` // Optional now
+			SenderId       string `json:"senderId"`
+			Debug          bool   `json:"debug"`
 		}
-	}
 
-	log.Printf("[Notification] Sent successfully | Conversation ID: %s", req.ConversationId)
-	return c.JSON(response)
-})
+		var req RequestBody
+		if err := c.BodyParser(&req); err != nil {
+			log.Printf("[Notification] Invalid request: %v", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Invalid request body",
+				"details": err.Error(),
+			})
+		}
 
+		// Validate required fields
+		if req.FcmToken == "" {
+			log.Println("[Notification] Missing required field: fcmToken")
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Missing required field: fcmToken",
+			})
+		}
 
+		// Optional: Generate a default conversation ID if needed
+		if req.ConversationId == "" {
+			req.ConversationId = "general" // Or generate a UUID if needed
+		}
 
-	
+		// Dynamically set title if not provided
+		if req.Title == "" {
+			req.Title = "New Notification"
+		}
+
+		log.Printf("[Notification] Sending to token: %s | Conversation ID: %s",
+			maskToken(req.FcmToken), req.ConversationId)
+
+		// Call the notification sending logic
+		config.SendPushNotification(
+			req.FcmToken,
+			req.Title,
+			req.Body,
+			req.ConversationId,
+			req.SenderId,
+		)
+
+		// Success response
+		response := fiber.Map{
+			"status":  "success",
+			"message": "Notification sent successfully",
+			"data": fiber.Map{
+				"conversationId": req.ConversationId,
+				"timestamp":      time.Now().Format(time.RFC3339),
+			},
+		}
+
+		// Optional debug response
+		if req.Debug {
+			response["debug"] = fiber.Map{
+				"fcmToken": maskToken(req.FcmToken),
+				"senderId": req.SenderId,
+			}
+		}
+
+		log.Printf("[Notification] Sent successfully | Conversation ID: %s", req.ConversationId)
+		return c.JSON(response)
+	})
 
 	app.Post("/api/track-open/:logId", handlers.TrackNotificationOpenHandler)
 	app.Get("/notifications/:uid", config.GetNotificationsHandler)
 
-
-app.Get("/unverifyAndResend/:uid", config.UnverifyAndResendHandler)
+	app.Get("/unverifyAndResend/:uid", config.UnverifyAndResendHandler)
 
 	ratingGroup := app.Group("/api/ratings")
-	ratingGroup.Post("/confirm",  middleware.AuthMiddleware, controller.ConfirmRental)
-	ratingGroup.Post("/submit",  middleware.AuthMiddleware, controller.SubmitRating)
-	ratingGroup.Get("/apartment/:id",  controller.GetApartmentRatings)
-	ratingGroup.Get("/tenant/:id",  middleware.AuthMiddleware, controller.GetTenantIDByRentalAgreementID)
+	ratingGroup.Post("/confirm", middleware.AuthMiddleware, controller.ConfirmRental)
+	ratingGroup.Post("/submit", middleware.AuthMiddleware, controller.SubmitRating)
+	ratingGroup.Get("/apartment/:id", controller.GetApartmentRatings)
+	ratingGroup.Get("/tenant/:id", middleware.AuthMiddleware, controller.GetTenantIDByRentalAgreementID)
 	ratingGroup.Get("/check", middleware.AuthMiddleware, controller.CheckRatingEligibility)
 	app.Get("/api/inquiries/has-inquiry", middleware.AuthMiddleware, controller.CheckHasInquiry)
 
-
-
 	//Payment using Gcash routes
-	
 
 }
 

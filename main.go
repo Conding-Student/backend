@@ -6,11 +6,11 @@ import (
 	"log"
 	"os"
 
-	"intern_template_v1/config"
-	"intern_template_v1/controller"
-	authController "intern_template_v1/controller/auth" // alias local auth package as authController
-	"intern_template_v1/middleware"
-	"intern_template_v1/routes"
+	"github.com/Conding-Student/backend/config"
+	"github.com/Conding-Student/backend/controller"
+	authController "github.com/Conding-Student/backend/controller/auth" // alias local auth package as authController
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/routes"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -19,7 +19,6 @@ import (
 )
 
 func main() {
-	
 
 	if middleware.ConnectDB() {
 		log.Fatal("🔥 Failed to connect to the database")
@@ -49,8 +48,7 @@ func main() {
 	service := &controller.PayMongoService{
 		DB:        middleware.DBConn, // Use the global DB connection
 		PublicKey: os.Getenv("PAYMONGO_PUBLIC_KEY"),
-SecretKey: os.Getenv("PAYMONGO_SECRET_KEY"),
-
+		SecretKey: os.Getenv("PAYMONGO_SECRET_KEY"),
 	}
 
 	// Step 4: Create Fiber App
@@ -73,8 +71,7 @@ SecretKey: os.Getenv("PAYMONGO_SECRET_KEY"),
 		return c.JSON(fiber.Map{"status": "failed", "message": "Payment failed"})
 	})
 
-
-		// CORS CONFIG
+	// CORS CONFIG
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
@@ -87,7 +84,6 @@ SecretKey: os.Getenv("PAYMONGO_SECRET_KEY"),
 	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
 		return c.SendStatus(204) // No Content
 	})
-
 
 	// Step 5: Register Routes
 	routes.AppRoutes(app)

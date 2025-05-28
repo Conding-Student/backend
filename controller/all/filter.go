@@ -1,12 +1,13 @@
 package controller
 
 import (
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -178,18 +179,17 @@ func FetchApprovedApartmentsForTenant(c *fiber.Ctx) error {
 	})
 
 	// At the end of your FetchApprovedApartmentsForTenant function
-		if len(results) == 0 {
-			return c.Status(fiber.StatusOK).JSON(fiber.Map{
-				"apartments": make([]interface{}, 0), // Explicit empty array
-				"message":    "No apartments found matching filters",
-			})
-		}
-
+	if len(results) == 0 {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"apartments": results,
+			"apartments": make([]interface{}, 0), // Explicit empty array
+			"message":    "No apartments found matching filters",
 		})
-}
+	}
 
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"apartments": results,
+	})
+}
 
 // FetchSingleApartmentDetails returns complete details for a specific apartment
 func FetchSingleApartmentDetails(c *fiber.Ctx) error {

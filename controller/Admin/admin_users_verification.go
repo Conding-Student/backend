@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"

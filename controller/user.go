@@ -3,9 +3,9 @@ package controller
 import (
 	"log"
 
-	"intern_template_v1/middleware"
-	"intern_template_v1/model"
-	"intern_template_v1/model/response"
+	"github.com/Conding-Student/backend/middleware"
+	"github.com/Conding-Student/backend/model"
+	"github.com/Conding-Student/backend/model/response"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -75,56 +75,57 @@ func GetUserProfile(c *fiber.Ctx) error {
 }
 
 func GetFullnameByUID(c *fiber.Ctx) error {
-    log.Println("[DEBUG] GetFullnameByUID called")
+	log.Println("[DEBUG] GetFullnameByUID called")
 
-    uid := c.Params("uid")
-    if uid == "" {
-        log.Println("[ERROR] UID param is missing")
-        return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
-            RetCode: "400",
-            Message: "UID is required",
-            Data:    nil,
-        })
-    }
+	uid := c.Params("uid")
+	if uid == "" {
+		log.Println("[ERROR] UID param is missing")
+		return c.Status(fiber.StatusBadRequest).JSON(response.ResponseModel{
+			RetCode: "400",
+			Message: "UID is required",
+			Data:    nil,
+		})
+	}
 
-    // First try to find in users table
-    var user model.User
-    userResult := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&user)
-    
-    if userResult.Error == nil {
-        log.Printf("[DEBUG] Found user in users table for UID %s: %s", uid, user.Fullname)
-        return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
-            RetCode: "200",
-            Message: "Fullname retrieved successfully",
-            Data: fiber.Map{
-                "fullname": user.Fullname,
-            },
-        })
-    }
+	// First try to find in users table
+	var user model.User
+	userResult := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&user)
 
-    // If not found in users table, try admins table
-    var admin model.Admins
-    adminResult := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&admin)
-    
-    if adminResult.Error == nil {
-        log.Printf("[DEBUG] Found admin in admins table for UID %s: %s", uid, admin.Email)
-        return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
-            RetCode: "200",
-            Message: "Admin email retrieved successfully",
-            Data: fiber.Map{
-                // Using email since Admins struct doesn't have fullname
-                "fullname": admin.Fullname, // Or you might want to return "Admin" as a role
-            },
-        })
-    }
+	if userResult.Error == nil {
+		log.Printf("[DEBUG] Found user in users table for UID %s: %s", uid, user.Fullname)
+		return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+			RetCode: "200",
+			Message: "Fullname retrieved successfully",
+			Data: fiber.Map{
+				"fullname": user.Fullname,
+			},
+		})
+	}
 
-    log.Println("[ERROR] User/Admin not found for UID:", uid)
-    return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
-        RetCode: "404",
-        Message: "User/Admin not found",
-        Data:    nil,
-    })
+	// If not found in users table, try admins table
+	var admin model.Admins
+	adminResult := middleware.DBConn.Select("fullname").Where("uid = ?", uid).First(&admin)
+
+	if adminResult.Error == nil {
+		log.Printf("[DEBUG] Found admin in admins table for UID %s: %s", uid, admin.Email)
+		return c.Status(fiber.StatusOK).JSON(response.ResponseModel{
+			RetCode: "200",
+			Message: "Admin email retrieved successfully",
+			Data: fiber.Map{
+				// Using email since Admins struct doesn't have fullname
+				"fullname": admin.Fullname, // Or you might want to return "Admin" as a role
+			},
+		})
+	}
+
+	log.Println("[ERROR] User/Admin not found for UID:", uid)
+	return c.Status(fiber.StatusNotFound).JSON(response.ResponseModel{
+		RetCode: "404",
+		Message: "User/Admin not found",
+		Data:    nil,
+	})
 }
+
 // GetUserRoleByUID retrieves the user's role based on their UID
 func GetUserRoleByUID(c *fiber.Ctx) error {
 	log.Println("[DEBUG] GetUserRoleByUID called")

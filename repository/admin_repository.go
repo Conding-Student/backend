@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"intern_template_v1/model" // adjust the import path
+	"github.com/Conding-Student/backend/model" // adjust the import path
 
 	"gorm.io/gorm"
 )
