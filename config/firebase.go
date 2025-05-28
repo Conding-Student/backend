@@ -38,7 +38,8 @@ func InitializeFirebase() *firebase.App {
 
 	// Initialize Firebase App
 	opt := option.WithCredentialsFile(tmpFile)
-	app, err := firebase.NewApp(context.Background(), nil, opt)
+	conf := &firebase.Config{ProjectID: "rentxpert-a987d"} // Add your project ID
+	app, err := firebase.NewApp(context.Background(), conf, opt)
 	if err != nil {
 		log.Fatalf("🔥 Error initializing Firebase App: %v", err)
 	}
