@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/Conding-Student/backend/config"
-	admincontroller "github.com/Conding-Student/backend/controller/admin"
-	admincontroller3 "github.com/Conding-Student/backend/controller/admin/apartment_management"
-	admincontroller4 "github.com/Conding-Student/backend/controller/admin/chart"
-	admincontroller2 "github.com/Conding-Student/backend/controller/admin/user_management"
+	admincontroller "github.com/Conding-Student/backend/controller/Admin"
+	admincontroller3 "github.com/Conding-Student/backend/controller/Admin/apartment_management"
+	admincontroller4 "github.com/Conding-Student/backend/controller/Admin/chart"
+	admincontroller2 "github.com/Conding-Student/backend/controller/Admin/user_management"
 	controller "github.com/Conding-Student/backend/controller/tenants"
 	"github.com/Conding-Student/backend/handlers"
 
