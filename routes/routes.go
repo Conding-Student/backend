@@ -282,7 +282,7 @@ func AppRoutes(app *fiber.App) {
 	app.Post("/api/track-open/:logId", handlers.TrackNotificationOpenHandler)
 	app.Get("/notifications/:uid", config.GetNotificationsHandler)
 
-	//app.Get("/unverifyAndResend/:uid", config.UnverifyAndResendHandler)
+	app.Get("/unverifyAndResend/:uid", config.UnverifyAndResendHandler)
 
 	ratingGroup := app.Group("/api/ratings")
 	ratingGroup.Post("/confirm", middleware.AuthMiddleware, controller.ConfirmRental)
