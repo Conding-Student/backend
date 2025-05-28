@@ -32,89 +32,8 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// Verify Firebase ID Token with account status check
-func VerifyFirebaseToken(c *fiber.Ctx) error {
-	var requestData struct {
-		IDToken string `json:"id_token"`
-	}
 
-	if err := c.BodyParser(&requestData); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
-	}
 
-	if firebaseAuthClient == nil {
-		log.Println("[ERROR] Firebase Auth Client not initialized")
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Server configuration error",
-		})
-	}
-
-	token, err := firebaseAuthClient.VerifyIDToken(context.Background(), requestData.IDToken)
-	if err != nil {
-		log.Printf("[ERROR] Firebase token verification failed: %v", err)
-		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid Firebase token",
-		})
-	}
-	uid := token.UID
-	email, _ := token.Claims["email"].(string)
-	fullName, _ := token.Claims["name"].(string)
-	photoUrl, _ := token.Claims["picture"].(string)
-	provider := ""
-	if firebaseMap, ok := token.Claims["firebase"].(map[string]interface{}); ok {
-		if signInProvider, ok := firebaseMap["sign_in_provider"].(string); ok {
-			provider = signInProvider
-		}
-	}
-
-	if provider == "facebook.com" {
-		userRecord, err := firebaseAuthClient.GetUser(context.Background(), uid)
-		if err == nil && userRecord.PhotoURL != "" {
-			photoUrl = userRecord.PhotoURL
-		}
-	}
-
-	// Check for deleted accounts
-	var existingUser model.User
-	if err := middleware.DBConn.
-		Unscoped().
-		Where("uid = ?", uid).
-		First(&existingUser).Error; err == nil {
-		if existingUser.AccountStatus == "Deleted" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error":   "Account deleted",
-				"message": "This account has been permanently deleted",
-			})
-		}
-	}
-
-	// Save or update user with extracted data
-	role, err := saveOrUpdateUserWithDetails(uid, email, fullName, photoUrl, provider)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "User account processing failed",
-		})
-	}
-
-	newJWT, err := middleware.GenerateJWT(uid, email, role)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Authentication failed",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message":      "Authentication successful",
-		"uid":          uid,
-		"email":        email,
-		"fullname":     fullName,
-		"photo_url":    photoUrl,
-		"role":         role,
-		"access_token": newJWT,
-	})
-}
 
 // Verify Firebase ID Token with account status check
 func VerifyFirebaseTokenAdmin(c *fiber.Ctx) error {
@@ -225,12 +144,100 @@ func saveOrUpdateAdmin(uid, email string) (string, error) {
 	return "", fmt.Errorf("database error: %v", err)
 }
 
-func saveOrUpdateUserWithDetails(uid, email, fullname, photoUrl, provider string) (string, error) {
+
+// Verify Firebase ID Token with Facebook photo URL handling
+// Verify Firebase ID Token with Facebook integration
+func VerifyFirebaseToken(c *fiber.Ctx) error {
+    var requestData struct {
+        IDToken     string `json:"id_token"`
+        AccessToken string `json:"facebook_access_token,omitempty"`
+    }
+
+    if err := c.BodyParser(&requestData); err != nil {
+        return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+            "error": "Invalid request body",
+        })
+    }
+
+    // Verify Firebase token
+    token, err := firebaseAuthClient.VerifyIDToken(context.Background(), requestData.IDToken)
+    if err != nil {
+        return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+            "error": "Invalid Firebase token",
+        })
+    }
+
+    // Extract user info
+    uid := token.UID
+    email, _ := token.Claims["email"].(string)
+    fullName, _ := token.Claims["name"].(string)
+    photoUrl, _ := token.Claims["picture"].(string)
+    provider := ""
+
+    // Handle Facebook provider specifically
+    if firebaseMap, ok := token.Claims["firebase"].(map[string]interface{}); ok {
+        if signInProvider, ok := firebaseMap["sign_in_provider"].(string); ok {
+            provider = signInProvider
+            
+            // Use Facebook access token for high-quality photo
+            if provider == "facebook.com" && requestData.AccessToken != "" {
+                photoUrl = fmt.Sprintf(
+                    "https://graph.facebook.com/v12.0/me/picture?width=500&height=500&access_token=%s",
+                    requestData.AccessToken,
+                )
+            }
+        }
+    }
+
+    // Check for deleted accounts
+	var existingUser model.User
+	if err := middleware.DBConn.
+		Unscoped().
+		Where("uid = ?", uid).
+		First(&existingUser).Error; err == nil {
+		if existingUser.AccountStatus == "Deleted" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Account deleted",
+			})
+		}
+	}
+
+    // Save/update user
+    role, err := saveOrUpdateUser(uid, email, fullName, photoUrl, provider)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "User processing failed",
+        })
+    }
+
+    // Generate JWT
+    jwtToken, err := middleware.GenerateJWT(uid, email, role)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Token generation failed",
+        })
+    }
+
+    return c.JSON(fiber.Map{
+        "uid":          uid,
+        "email":        email,
+        "fullname":     fullName,
+        "photo_url":    photoUrl,
+        "role":         role,
+        "access_token": jwtToken,
+    })
+}
+
+	// Check for deleted accounts
+
+
+// Enhanced user saving with photo URL handling
+func saveOrUpdateUser(uid, email, fullname, photoUrl, provider string) (string, error) {
 	var user model.User
 	err := middleware.DBConn.Where("uid = ?", uid).First(&user).Error
 
 	if err == nil {
-		// Update fields if changed
+		// Update existing user
 		changed := false
 		if user.Email != email {
 			user.Email = email
@@ -248,6 +255,7 @@ func saveOrUpdateUserWithDetails(uid, email, fullname, photoUrl, provider string
 			user.Provider = provider
 			changed = true
 		}
+
 		if changed {
 			user.UpdatedAt = time.Now()
 			if err := middleware.DBConn.Save(&user).Error; err != nil {
@@ -258,17 +266,19 @@ func saveOrUpdateUserWithDetails(uid, email, fullname, photoUrl, provider string
 	}
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Create new user with enhanced photo handling
 		newUser := model.User{
 			Uid:           uid,
 			Email:         email,
 			Fullname:      fullname,
 			PhotoURL:      photoUrl,
 			AccountStatus: "Unverified",
-			UserType:      "Tenant", // default role
+			UserType:      "Tenant",
 			Provider:      provider,
 			CreatedAt:     time.Now(),
 			UpdatedAt:     time.Now(),
 		}
+
 		if err := middleware.DBConn.Create(&newUser).Error; err != nil {
 			return "", fmt.Errorf("user creation failed: %v", err)
 		}
