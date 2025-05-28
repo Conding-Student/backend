@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
-	//"time"
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
 	"github.com/gofiber/fiber/v2"
@@ -69,11 +67,7 @@ func UnverifyAndResendHandler(c *fiber.Ctx) error {
 }
 
 func InitializeFirebase() *firebase.App {
-	credJSON := os.Getenv("FIREBASE_CREDENTIALS")
-	if credJSON == "" {
-		log.Fatalf("FIREBASE_CREDENTIALS env var is not set!")
-	}
-	opt := option.WithCredentialsJSON([]byte(credJSON))
+	opt := option.WithCredentialsFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-40cdc3385d.json")
 
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
@@ -85,7 +79,7 @@ func InitializeFirebase() *firebase.App {
 		log.Fatalf("🔥 Error getting Auth client: %v", err)
 	}
 
-	FirebaseAuth = authClient
+	FirebaseAuth = authClient // ← important!
 	log.Println("✅ Firebase Auth initialized successfully")
 	return app
 }

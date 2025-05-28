@@ -173,7 +173,7 @@ func sendPushOnly(fcmToken, title, body, conversationId, senderId string) {
 	ctx := context.Background()
 
 	// Load service account key
-	saKey, err := os.ReadFile("firebase-service-key.json")
+	saKey, err := os.ReadFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-40cdc3385d.json")
 	if err != nil {
 		log.Printf("Error reading service key: %v", err)
 		return
