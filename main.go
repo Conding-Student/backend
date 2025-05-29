@@ -60,6 +60,7 @@ func main() {
 	app.Post("/api/webhook", service.HandleWebhook)
 	app.Get("/api/transaction/:source_id", service.GetTransaction)
 	app.Get("/api/transactions", service.GetTransactions)
+	app.Get(("/api/get-all/transaction"), service.GetAllTransactions)
 
 	// PayMongo redirect routes
 app.Get("/success", service.HandleSuccessRedirect) // Add this

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"runtime/debug"
 
 	"encoding/base64"
 	"encoding/json"
@@ -69,9 +70,11 @@ type WebhookPayload struct {
 // CreateSource creates a PayMongo GCash source and saves transaction
 func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 	type Request struct {
-		UserID     string  `json:"user_id"`
-		BaseAmount float64 `json:"base_amount"`
-	}
+	UserID     string  `json:"user_id"`
+	BaseAmount float64 `json:"base_amount"`
+	Availment  string  `json:"availment"` // 👈 e.g. "Ad Post", "Deposit", etc.
+}
+
 
 	var req Request
 	if err := c.BodyParser(&req); err != nil {
@@ -151,23 +154,27 @@ func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 	}
 
 	// Save transaction to PostgreSQL
-	txn := model.Transaction{
-		UserID:           req.UserID,
-		BaseAmount:       req.BaseAmount,
-		InterestAmount:   interest,
-		TotalAmount:      totalAmount,
-		PayMongoSourceID: sourceResp.Data.ID,
-		Status:           "pending",
-	}
+txn := model.Transaction{
+	UserID:           req.UserID,
+	BaseAmount:       req.BaseAmount,
+	InterestAmount:   interest,
+	TotalAmount:      totalAmount,
+	PayMongoSourceID: sourceResp.Data.ID,
+	Status:           "pending",
+	Availment:        req.Availment, // 👈 add this
+}
+
 	if err := s.DB.Create(&txn).Error; err != nil {
 		log.Printf("Database error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error"})
 	}
 
-	return c.JSON(fiber.Map{
-		"checkout_url": sourceResp.Data.Attributes.Redirect.CheckoutURL,
-		"source_id":    sourceResp.Data.ID,
-	})
+return c.JSON(fiber.Map{
+	"checkout_url": sourceResp.Data.Attributes.Redirect.CheckoutURL,
+	"source_id":    sourceResp.Data.ID,
+	"availment":    txn.Availment,
+})
+
 }
 
 // HandleWebhook processes PayMongo webhooks
@@ -526,6 +533,68 @@ func (s *PayMongoService) HandleFailedRedirect(c *fiber.Ctx) error {
     return c.SendString(html)
 }
 
+
+func (s *PayMongoService) GetAllTransactions(c *fiber.Ctx) error {
+    // Initialize slice to hold transactions
+    var transactions []model.Transaction
+    
+    // Query all transactions ordered by creation date (newest first)
+    if err := s.DB.Order("created_at DESC").Find(&transactions).Error; err != nil {
+        // Enhanced error logging
+        log.Printf("Database error fetching transactions: %v\nStack: %s", 
+            err, 
+            debug.Stack())
+            
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Could not retrieve transactions",
+            "details": "Database operation failed",
+        })
+    }
+
+    // Log successful query
+    log.Printf("Successfully retrieved %d transactions", len(transactions))
+    
+    // Format the response data
+    type TransactionResponse struct {
+        ID                string    `json:"id"`
+        UserID            string    `json:"user_id"`
+        BaseAmount        float64   `json:"base_amount"`
+        InterestAmount    float64   `json:"interest_amount"`
+        TotalAmount       float64   `json:"total_amount"`
+        Status            string    `json:"status"`
+        PayMongoSourceID  string    `json:"paymongo_source_id"`
+        PayMongoPaymentID string    `json:"paymongo_payment_id,omitempty"`
+        CreatedAt         time.Time `json:"created_at"`
+        UpdatedAt         time.Time `json:"updated_at"`
+    }
+
+    // Convert to response format
+    var response []TransactionResponse
+    for _, txn := range transactions {
+        response = append(response, TransactionResponse{
+
+            UserID:            txn.UserID,
+            BaseAmount:        txn.BaseAmount,
+            InterestAmount:    txn.InterestAmount,
+            TotalAmount:       txn.TotalAmount,
+            Status:            txn.Status,
+            PayMongoSourceID:  txn.PayMongoSourceID,
+            PayMongoPaymentID: txn.PayMongoPaymentID,
+            CreatedAt:         txn.CreatedAt,
+            UpdatedAt:         txn.UpdatedAt,
+        })
+    }
+
+    // Return paginated response format
+    return c.JSON(fiber.Map{
+        "success": true,
+        "data":    response,
+        "meta": fiber.Map{
+            "total_count": len(response),
+            "timestamp":   time.Now().UTC(),
+        },
+    })
+}
 // func isValidSignature(secret, payload, receivedSignature string) bool {
 //     log.Printf("🔍 Validating signature: secret=%s, payload=%s, received=%s", secret, payload, receivedSignature)
 //     parts := strings.Split(receivedSignature, ",")
