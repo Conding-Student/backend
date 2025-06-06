@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Conding-Student/backend/model" // Corrected models import
+	//"github.com/Conding-Student/backend/model" // Corrected models import
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -29,23 +29,23 @@ func ConnectDB() bool {
 
 	// ✅ Run AutoMigrate for all models
 	err = DBConn.AutoMigrate(
-		&model.User{},
-		&model.Admins{},
-		&model.Apartment{},
-		&model.LandlordProfile{},
-		&model.ApartmentImage{},
-		&model.ApartmentVideo{},
-		&model.Inquiry{},
-		&model.Amenity{},
-		&model.ApartmentAmenity{},
-		&model.HouseRule{},
-		&model.ApartmentHouseRule{},
-		&model.Wishlist{},
-		&model.RecentlyViewed{},
-		&model.RentalAgreement{},
-		&model.Rating{},
-		&model.Transaction{},
-		// &model.AdminToken{},
+	// &model.User{},
+	// &model.Admins{},
+	// &model.Apartment{},
+	// &model.LandlordProfile{},
+	// &model.ApartmentImage{},
+	// &model.ApartmentVideo{},
+	// &model.Inquiry{},
+	// &model.Amenity{},
+	// &model.ApartmentAmenity{},
+	// &model.HouseRule{},
+	// &model.ApartmentHouseRule{},
+	// &model.Wishlist{},
+	// &model.RecentlyViewed{},
+	// &model.RentalAgreement{},
+	// &model.Rating{},
+	// &model.Transaction{},
+	// &model.AdminToken{},
 	)
 
 	// ✅ Create unique index (outside AutoMigrate)
