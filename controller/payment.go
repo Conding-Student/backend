@@ -2,12 +2,16 @@ package controller
 
 import (
 	"bytes"
+	"runtime/debug"
+
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+
 	"time"
 
 	"github.com/Conding-Student/backend/model"
@@ -66,9 +70,11 @@ type WebhookPayload struct {
 // CreateSource creates a PayMongo GCash source and saves transaction
 func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 	type Request struct {
-		UserID     string  `json:"user_id"`
-		BaseAmount float64 `json:"base_amount"`
-	}
+	UserID     string  `json:"user_id"`
+	BaseAmount float64 `json:"base_amount"`
+	Availment  string  `json:"availment"` // 👈 e.g. "Ad Post", "Deposit", etc.
+}
+
 
 	var req Request
 	if err := c.BodyParser(&req); err != nil {
@@ -92,8 +98,8 @@ func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 	sourceReq.Data.Attributes.Amount = amountInCentavos
 	sourceReq.Data.Attributes.Currency = "PHP"
 	sourceReq.Data.Attributes.Type = "gcash"
-	sourceReq.Data.Attributes.Redirect.Success = "https://9f5d-180-193-184-88.ngrok-free.app/success"
-	sourceReq.Data.Attributes.Redirect.Failed = "https://9f5d-180-193-184-88.ngrok-free.app/failed"
+	sourceReq.Data.Attributes.Redirect.Success = "https://bd1a-103-72-190-240.ngrok-free.app/success"
+	sourceReq.Data.Attributes.Redirect.Failed = "https://bd1a-103-72-190-240.ngrok-free.app/failed"
 
 	body, err := json.Marshal(sourceReq)
 	if err != nil {
@@ -148,62 +154,65 @@ func (s *PayMongoService) CreateSource(c *fiber.Ctx) error {
 	}
 
 	// Save transaction to PostgreSQL
-	txn := model.Transaction{
-		UserID:           req.UserID,
-		BaseAmount:       req.BaseAmount,
-		InterestAmount:   interest,
-		TotalAmount:      totalAmount,
-		PayMongoSourceID: sourceResp.Data.ID,
-		Status:           "pending",
-	}
+txn := model.Transaction{
+	UserID:           req.UserID,
+	BaseAmount:       req.BaseAmount,
+	InterestAmount:   interest,
+	TotalAmount:      totalAmount,
+	PayMongoSourceID: sourceResp.Data.ID,
+	Status:           "pending",
+	Availment:        req.Availment, // 👈 add this
+}
+
 	if err := s.DB.Create(&txn).Error; err != nil {
 		log.Printf("Database error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error"})
 	}
 
-	return c.JSON(fiber.Map{
-		"checkout_url": sourceResp.Data.Attributes.Redirect.CheckoutURL,
-		"source_id":    sourceResp.Data.ID,
-	})
+return c.JSON(fiber.Map{
+	"checkout_url": sourceResp.Data.Attributes.Redirect.CheckoutURL,
+	"source_id":    sourceResp.Data.ID,
+	"availment":    txn.Availment,
+})
+
 }
 
 // HandleWebhook processes PayMongo webhooks
 func (s *PayMongoService) HandleWebhook(c *fiber.Ctx) error {
 	// 1. Log raw request
-	body := c.Body()
-	log.Printf("📩 Incoming webhook: %s", string(body))
+body := c.Body()
+    log.Printf("📩 Webhook received: headers=%v, body=%s", c.GetReqHeaders(), string(body))
 
-	// 2. Verify PayMongo signature
-	signature := c.Get("Paymongo-Signature")
-	if signature == "" {
-		log.Println("⚠️ Missing Paymongo-Signature header")
-		return c.SendStatus(fiber.StatusBadRequest)
-	}
+    signature := c.Get("Paymongo-Signature")
+    log.Printf("🔍 Paymongo-Signature: %s", signature)
+    if signature == "" {
+        log.Println("⚠️ Missing Paymongo-Signature header")
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Missing signature"})
+    }
 
-	// 3. Parse webhook payload
-	var webhook WebhookPayload
-	if err := c.BodyParser(&webhook); err != nil {
-		log.Printf("❌ Invalid webhook payload: %v", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid webhook"})
-	}
+log.Printf("✅ Bypassing signature validation for debugging")
 
-	// 4. Check event type
-	if webhook.Data.Attributes.Type != "source.chargeable" {
-		log.Printf("ℹ️ Ignoring non-chargeable webhook event: %s", webhook.Data.Attributes.Type)
-		return c.SendStatus(fiber.StatusOK)
-	}
+var webhook WebhookPayload
+    if err := c.BodyParser(&webhook); err != nil {
+        log.Printf("❌ Invalid webhook payload: %v", err)
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid webhook"})
+    }
+
+if webhook.Data.Attributes.Type != "source.chargeable" {
+        log.Printf("ℹ️ Ignoring non-chargeable webhook event: %s", webhook.Data.Attributes.Type)
+        return c.SendStatus(fiber.StatusOK)
+    }
 
 	// 5. Extract source ID and amount
-	sourceID := webhook.Data.Attributes.Data.ID
-	amount := webhook.Data.Attributes.Data.Attributes.Amount
-	log.Printf("🔍 Processing webhook for source: %s, amount: %d", sourceID, amount)
+sourceID := webhook.Data.Attributes.Data.ID
+    amount := webhook.Data.Attributes.Data.Attributes.Amount
+    log.Printf("🔍 Processing webhook for source: %s, amount: %d", sourceID, amount)
 
-	// 6. Check if transaction exists
-	var txn model.Transaction
-	if err := s.DB.Where("pay_mongo_source_id = ?", sourceID).First(&txn).Error; err != nil {
-		log.Printf("❌ Transaction not found for source %s: %v", sourceID, err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Transaction not found"})
-	}
+    var txn model.Transaction
+    if err := s.DB.Where("pay_mongo_source_id = ?", sourceID).First(&txn).Error; err != nil {
+        log.Printf("❌ Transaction not found for source %s: %v", sourceID, err)
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Transaction not found"})
+    }
 
 	// 7. Fetch source status from PayMongo API
 	sourceReq, err := http.NewRequest("GET", fmt.Sprintf("https://api.paymongo.com/v1/sources/%s", sourceID), nil)
@@ -385,39 +394,30 @@ func (s *PayMongoService) getPaymentIDForSource(sourceID string) (string, error)
 }
 
 func (s *PayMongoService) GetTransaction(c *fiber.Ctx) error {
-	sourceID := c.Params("source_id")
-	if sourceID == "" {
-		log.Printf("Missing source_id parameter")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Source ID required"})
-	}
+    sourceID := c.Params("source_id")
+    if sourceID == "" {
+        log.Printf("Missing source_id parameter")
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Source ID required"})
+    }
 
-	var txn model.Transaction
-	if err := s.DB.Where("pay_mongo_source_id = ?", sourceID).First(&txn).Error; err != nil {
-		log.Printf("Transaction not found for source %s: %v", sourceID, err)
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Transaction not found"})
-	}
+    var txn model.Transaction
+    if err := s.DB.Where("pay_mongo_source_id = ?", sourceID).First(&txn).Error; err != nil {
+        log.Printf("Transaction not found for source %s: %v", sourceID, err)
+        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Transaction not found"})
+    }
 
-	// Ensure non-null defaults for critical fields
-	if txn.UserID == "" {
-		txn.UserID = "unknown_user"
-	}
-	if txn.Status == "" {
-		txn.Status = "unknown"
-	}
-
-	return c.JSON(fiber.Map{
-		"user_id":             txn.UserID,
-		"base_amount":         txn.BaseAmount,
-		"interest_amount":     txn.InterestAmount,
-		"total_amount":        txn.TotalAmount,
-		"paymongo_source_id":  txn.PayMongoSourceID,
-		"paymongo_payment_id": txn.PayMongoPaymentID,
-		"status":              txn.Status,
-		"created_at":          txn.CreatedAt,
-		"updated_at":          txn.UpdatedAt,
-	})
+    return c.JSON(fiber.Map{
+        "user_id":             txn.UserID,
+        "base_amount":         txn.BaseAmount,
+        "interest_amount":     txn.InterestAmount,
+        "total_amount":        txn.TotalAmount,
+        "pay_mongo_source_id": txn.PayMongoSourceID,
+        "pay_mongo_payment_id": txn.PayMongoPaymentID,
+        "status":              txn.Status,
+        "created_at":          txn.CreatedAt.Format(time.RFC3339),
+        "updated_at":          txn.UpdatedAt.Format(time.RFC3339),
+    })
 }
-
 // Add to PayMongoService methods
 func (s *PayMongoService) GetTransactions(c *fiber.Ctx) error {
 	userID := c.Query("user_id")
@@ -434,3 +434,185 @@ func (s *PayMongoService) GetTransactions(c *fiber.Ctx) error {
 
 	return c.JSON(transactions)
 }
+
+func (s *PayMongoService) HandleSuccessRedirect(c *fiber.Ctx) error {
+    // Set content type first
+    c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+    
+    rawQuery := c.Request().URI().QueryArgs().String()
+    log.Printf("Success redirect received: raw_query=%s", rawQuery)
+    
+    sourceID := c.Query("id")
+    log.Printf("Parsed source_id=%s", sourceID)
+    
+    if sourceID == "" {
+        log.Printf("Missing source ID, attempting to find latest transaction")
+        var txn model.Transaction
+        if err := s.DB.Where("status = ?", "pending").Order("created_at desc").First(&txn).Error; err == nil {
+            sourceID = txn.PayMongoSourceID
+            log.Printf("Found latest transaction source_id=%s", sourceID)
+        }
+        
+        if sourceID == "" {
+            log.Printf("No valid source ID found")
+            return c.Status(fiber.StatusBadRequest).SendString("Missing source ID")
+        }
+    }
+    
+    // Use the app scheme for deep linking
+    appRedirectURL := fmt.Sprintf("rentxpert://paymentsuccess?id=%s", url.QueryEscape(sourceID))
+    webRedirectURL := fmt.Sprintf("https://bd1a-103-72-190-240.ngrok-free.app/success?id=%s", url.QueryEscape(sourceID))
+    
+    log.Printf("Redirecting to app: %s or web: %s", appRedirectURL, webRedirectURL)
+    
+    html := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0;url=%s">
+    <script>
+        // Try deep link first, fallback to web
+        window.location.href = "%s";
+        setTimeout(function() {
+            window.location.href = "%s";
+        }, 500);
+    </script>
+</head>
+<body>
+    <p>Redirecting to app...</p>
+    <a href="%s">Open in App</a> | 
+    <a href="%s">Continue on Web</a>
+</body>
+</html>`, appRedirectURL, appRedirectURL, webRedirectURL, appRedirectURL, webRedirectURL)
+    
+    return c.SendString(html)
+}
+
+func (s *PayMongoService) HandleFailedRedirect(c *fiber.Ctx) error {
+    c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+    
+    rawQuery := c.Request().URI().QueryArgs().String()
+    log.Printf("Failed redirect received: raw_query=%s", rawQuery)
+    
+    sourceID := c.Query("id")
+    log.Printf("Parsed source_id=%s", sourceID)
+    
+    if sourceID == "" {
+        log.Printf("Missing source ID, attempting to find latest failed transaction")
+        var txn model.Transaction
+        if err := s.DB.Where("status = ?", "failed").Order("created_at desc").First(&txn).Error; err == nil {
+            sourceID = txn.PayMongoSourceID
+            log.Printf("Found latest failed transaction source_id=%s", sourceID)
+        }
+    }
+    
+    // Use the same pattern as success redirect
+    appRedirectURL := fmt.Sprintf("rentxpert://paymentfailed?id=%s", url.QueryEscape(sourceID))
+    webRedirectURL := fmt.Sprintf("https://bd1a-103-72-190-240.ngrok-free.app/failed?id=%s", url.QueryEscape(sourceID))
+    
+    log.Printf("Redirecting to app: %s or web: %s", appRedirectURL, webRedirectURL)
+    
+    html := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0;url=%s">
+    <script>
+        // Try deep link first, fallback to web
+        window.location.href = "%s";
+        setTimeout(function() {
+            window.location.href = "%s";
+        }, 500);
+    </script>
+</head>
+<body>
+    <p>Redirecting to app...</p>
+    <a href="%s">Open in App</a> | 
+    <a href="%s">Continue on Web</a>
+</body>
+</html>`, appRedirectURL, appRedirectURL, webRedirectURL, appRedirectURL, webRedirectURL)
+    
+    return c.SendString(html)
+}
+
+
+func (s *PayMongoService) GetAllTransactions(c *fiber.Ctx) error {
+    // Initialize slice to hold transactions
+    var transactions []model.Transaction
+    
+    // Query all transactions ordered by creation date (newest first)
+    if err := s.DB.Order("created_at DESC").Find(&transactions).Error; err != nil {
+        // Enhanced error logging
+        log.Printf("Database error fetching transactions: %v\nStack: %s", 
+            err, 
+            debug.Stack())
+            
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Could not retrieve transactions",
+            "details": "Database operation failed",
+        })
+    }
+
+    // Log successful query
+    log.Printf("Successfully retrieved %d transactions", len(transactions))
+    
+    // Format the response data
+    type TransactionResponse struct {
+        ID                string    `json:"id"`
+        UserID            string    `json:"user_id"`
+        BaseAmount        float64   `json:"base_amount"`
+        InterestAmount    float64   `json:"interest_amount"`
+        TotalAmount       float64   `json:"total_amount"`
+        Status            string    `json:"status"`
+        PayMongoSourceID  string    `json:"paymongo_source_id"`
+        PayMongoPaymentID string    `json:"paymongo_payment_id,omitempty"`
+        CreatedAt         time.Time `json:"created_at"`
+        UpdatedAt         time.Time `json:"updated_at"`
+    }
+
+    // Convert to response format
+    var response []TransactionResponse
+    for _, txn := range transactions {
+        response = append(response, TransactionResponse{
+
+            UserID:            txn.UserID,
+            BaseAmount:        txn.BaseAmount,
+            InterestAmount:    txn.InterestAmount,
+            TotalAmount:       txn.TotalAmount,
+            Status:            txn.Status,
+            PayMongoSourceID:  txn.PayMongoSourceID,
+            PayMongoPaymentID: txn.PayMongoPaymentID,
+            CreatedAt:         txn.CreatedAt,
+            UpdatedAt:         txn.UpdatedAt,
+        })
+    }
+
+    // Return paginated response format
+    return c.JSON(fiber.Map{
+        "success": true,
+        "data":    response,
+        "meta": fiber.Map{
+            "total_count": len(response),
+            "timestamp":   time.Now().UTC(),
+        },
+    })
+}
+// func isValidSignature(secret, payload, receivedSignature string) bool {
+//     log.Printf("🔍 Validating signature: secret=%s, payload=%s, received=%s", secret, payload, receivedSignature)
+//     parts := strings.Split(receivedSignature, ",")
+//     var timestamp, signature string
+//     for _, part := range parts {
+//         if strings.HasPrefix(part, "t=") {
+//             timestamp = strings.TrimPrefix(part, "t=")
+//         } else if strings.HasPrefix(part, "te=") {
+//             signature = strings.TrimPrefix(part, "te=")
+//         }
+//     }
+//     if timestamp == "" || signature == "" {
+//         log.Printf("❌ Invalid signature format: %s", receivedSignature)
+//         return false
+//     }
+//     mac := hmac.New(sha256.New, []byte(secret))
+//     mac.Write([]byte(timestamp + "." + payload))
+//     expected := fmt.Sprintf("%x", mac.Sum(nil)) // Remove sha256= prefix
+//     log.Printf("🔍 Computed signature: %s, received signature: %s", expected, signature)
+//     return hmac.Equal([]byte(expected), []byte(signature))
+// }

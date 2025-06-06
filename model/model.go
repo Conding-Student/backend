@@ -216,4 +216,6 @@ type Transaction struct {
 	Status            string    `gorm:"type:varchar(20);not null"`
 	CreatedAt         time.Time `gorm:"autoCreateTime"`
 	UpdatedAt         time.Time `gorm:"autoUpdateTime"`
+Availment string `gorm:"column:availment" json:"availment"`
+
 }

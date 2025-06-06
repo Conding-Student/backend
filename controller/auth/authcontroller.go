@@ -146,7 +146,7 @@ func saveOrUpdateAdmin(uid, email string) (string, error) {
 
 
 // Verify Firebase ID Token with Facebook photo URL handling
-// Verify Firebase ID Token with Facebook integration
+// Verify Firebase ID Token with minimal photo URL handling
 func VerifyFirebaseToken(c *fiber.Ctx) error {
     var requestData struct {
         IDToken     string `json:"id_token"`
@@ -174,36 +174,28 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
     photoUrl, _ := token.Claims["picture"].(string)
     provider := ""
 
-    // Handle Facebook provider specifically
+    // Determine provider
     if firebaseMap, ok := token.Claims["firebase"].(map[string]interface{}); ok {
         if signInProvider, ok := firebaseMap["sign_in_provider"].(string); ok {
             provider = signInProvider
-            
-            // Use Facebook access token for high-quality photo
-            if provider == "facebook.com" && requestData.AccessToken != "" {
-                photoUrl = fmt.Sprintf(
-                    "https://graph.facebook.com/v12.0/me/picture?width=500&height=500&access_token=%s",
-                    requestData.AccessToken,
-                )
-            }
         }
     }
 
     // Check for deleted accounts
-	var existingUser model.User
-	if err := middleware.DBConn.
-		Unscoped().
-		Where("uid = ?", uid).
-		First(&existingUser).Error; err == nil {
-		if existingUser.AccountStatus == "Deleted" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Account deleted",
-			})
-		}
-	}
+    var existingUser model.User
+    if err := middleware.DBConn.
+        Unscoped().
+        Where("uid = ?", uid).
+        First(&existingUser).Error; err == nil {
+        if existingUser.AccountStatus == "Deleted" {
+            return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+                "error": "Account deleted",
+            })
+        }
+    }
 
-    // Save/update user
-    role, err := saveOrUpdateUser(uid, email, fullName, photoUrl, provider)
+    // Save/update user, passing AccessToken for handling
+    role, err := saveOrUpdateUser(uid, email, fullName, photoUrl, provider, requestData.AccessToken)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "error": "User processing failed",
@@ -228,62 +220,68 @@ func VerifyFirebaseToken(c *fiber.Ctx) error {
     })
 }
 
-	// Check for deleted accounts
+// Enhanced user saving with photo URL and access token handling
+func saveOrUpdateUser(uid, email, fullname, photoUrl, provider, accessToken string) (string, error) {
+    var user model.User
+    err := middleware.DBConn.Where("uid = ?", uid).First(&user).Error
 
+    // Handle Facebook photo URL with AccessToken
+    if provider == "facebook.com" && accessToken != "" {
+        photoUrl = fmt.Sprintf(
+            "https://graph.facebook.com/v12.0/me/picture?width=500&height=500&access_token=%s",
+            accessToken,
+        )
+    }
 
-// Enhanced user saving with photo URL handling
-func saveOrUpdateUser(uid, email, fullname, photoUrl, provider string) (string, error) {
-	var user model.User
-	err := middleware.DBConn.Where("uid = ?", uid).First(&user).Error
+    if err == nil {
+        // Update existing user
+        changed := false
+        if user.Email != email {
+            user.Email = email
+            changed = true
+        }
+        if fullname != "" && user.Fullname != fullname {
+            user.Fullname = fullname
+            changed = true
+        }
+        // Only update PhotoURL for non-Google providers or if PhotoURL is empty
+        if photoUrl != "" && user.PhotoURL != photoUrl && (provider != "google.com" || user.PhotoURL == "") {
+            user.PhotoURL = photoUrl
+            changed = true
+        }
+        if user.Provider != provider {
+            user.Provider = provider
+            changed = true
+        }
 
-	if err == nil {
-		// Update existing user
-		changed := false
-		if user.Email != email {
-			user.Email = email
-			changed = true
-		}
-		if fullname != "" && user.Fullname != fullname {
-			user.Fullname = fullname
-			changed = true
-		}
-		if photoUrl != "" && user.PhotoURL != photoUrl {
-			user.PhotoURL = photoUrl
-			changed = true
-		}
-		if user.Provider != provider {
-			user.Provider = provider
-			changed = true
-		}
+        if changed {
+            user.UpdatedAt = time.Now()
+            if err := middleware.DBConn.Save(&user).Error; err != nil {
+                return "", fmt.Errorf("user update failed: %v", err)
+            }
+        }
+        return user.UserType, nil
+    }
 
-		if changed {
-			user.UpdatedAt = time.Now()
-			if err := middleware.DBConn.Save(&user).Error; err != nil {
-				return "", fmt.Errorf("user update failed: %v", err)
-			}
-		}
-		return user.UserType, nil
-	}
+    if errors.Is(err, gorm.ErrRecordNotFound) {
+        // Create new user with enhanced photo handling
+        newUser := model.User{
+            Uid:           uid,
+            Email:         email,
+            Fullname:      fullname,
+            PhotoURL:      photoUrl,
+            AccountStatus: "Unverified",
+            UserType:      "Tenant",
+            Provider:      provider,
+            CreatedAt:     time.Now(),
+            UpdatedAt:     time.Now(),
+        }
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Create new user with enhanced photo handling
-		newUser := model.User{
-			Uid:           uid,
-			Email:         email,
-			Fullname:      fullname,
-			PhotoURL:      photoUrl,
-			AccountStatus: "Unverified",
-			UserType:      "Tenant",
-			Provider:      provider,
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
-		}
+        if err := middleware.DBConn.Create(&newUser).Error; err != nil {
+            return "", fmt.Errorf("user creation failed: %v", err)
+        }
+        return newUser.UserType, nil
+    }
 
-		if err := middleware.DBConn.Create(&newUser).Error; err != nil {
-			return "", fmt.Errorf("user creation failed: %v", err)
-		}
-		return newUser.UserType, nil
-	}
-
-	return "", fmt.Errorf("database error: %v", err)
+    return "", fmt.Errorf("database error: %v", err)
 }

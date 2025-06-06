@@ -67,7 +67,7 @@ func UnverifyAndResendHandler(c *fiber.Ctx) error {
 }
 
 func InitializeFirebase() *firebase.App {
-	opt := option.WithCredentialsFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-40cdc3385d.json")
+	opt := option.WithCredentialsFile("config/rentxpert-a987d-firebase-adminsdk-fbsvc-9b6dda447a.json")
 
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {

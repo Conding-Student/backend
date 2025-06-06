@@ -60,16 +60,11 @@ func main() {
 	app.Post("/api/webhook", service.HandleWebhook)
 	app.Get("/api/transaction/:source_id", service.GetTransaction)
 	app.Get("/api/transactions", service.GetTransactions)
+	app.Get(("/api/get-all/transaction"), service.GetAllTransactions)
 
 	// PayMongo redirect routes
-	app.Get("/success", func(c *fiber.Ctx) error {
-		log.Printf("Received PayMongo success redirect")
-		return c.JSON(fiber.Map{"status": "success", "message": "Payment authorized"})
-	})
-	app.Get("/failed", func(c *fiber.Ctx) error {
-		log.Printf("Received PayMongo failed redirect")
-		return c.JSON(fiber.Map{"status": "failed", "message": "Payment failed"})
-	})
+app.Get("/success", service.HandleSuccessRedirect) // Add this
+    app.Get("/failed", service.HandleFailedRedirect)   // Optional for failed redirects
 
 	// CORS CONFIG
 	app.Use(cors.New(cors.Config{
